@@ -1,0 +1,108 @@
+services:
+  ubuntu-secure:
+    build:
+      context: .
+      dockerfile: Dockerfile
+
+    container_name: ubuntu-secure-app
+    hostname: secure-ubuntu
+
+    # Redémarrage automatique sauf arrêt manuel
+    restart: unless-stopped
+
+    # Configuration réseau - Isolation partielle avec accès internet
+    networks:
+      - secure_network
+
+    # Pas de ports exposés par défaut (à ajouter selon besoin)
+    # ports:
+    #   - "8080:8080"  # Décommentez si besoin
+
+    # Volume persistant de 60GB
+    volumes:
+      - app_data:/data:rw
+      - /etc/localtime:/etc/localtime:ro  # Synchronisation timezone
+
+    # Tmpfs pour données temporaires volatiles
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=512m
+      - /var/tmp:rw,noexec,nosuid,size=512m
+      - /run:rw,noexec,nosuid,size=128m
+
+    # Système de fichiers en lecture seule (rootfs)
+    # Décommentez si votre application le supporte
+    # read_only: true
+
+    # Limitations des ressources
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'      # Maximum 2 CPU cores
+          memory: 4G       # Maximum 4GB RAM
+        reservations:
+          cpus: '0.5'      # Minimum 0.5 CPU
+          memory: 512M     # Minimum 512MB RAM
+
+    # Configuration de sécurité maximale
+    security_opt:
+      - no-new-privileges:true    # Empêche escalade de privilèges
+      - seccomp:unconfined        # Remplacer par seccomp=default.json en production
+      - apparmor:docker-default   # Profile AppArmor par défaut
+
+    # Capabilities Linux minimales
+    cap_drop:
+      - ALL                       # Retire TOUTES les capabilities
+
+    # Ajoutez uniquement les capabilities nécessaires
+    # cap_add:
+    #   - NET_BIND_SERVICE       # Si besoin de ports < 1024
+    #   - CHOWN                  # Si besoin de changer propriétaire fichiers
+
+    # DNS personnalisés (Cloudflare + Google)
+    dns:
+      - 1.1.1.1
+      - 8.8.8.8
+
+    # Variables d'environnement (ajoutez les vôtres)
+    environment:
+      - TZ=UTC
+      - NODE_ENV=production
+      # Ajoutez vos variables ici
+
+    # Logs configuration (limite la taille des logs)
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+    # Health check
+    healthcheck:
+      test: ["CMD", "test", "-d", "/data"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+
+# Configuration du réseau isolé
+networks:
+  secure_network:
+    driver: bridge
+    driver_opts:
+      com.docker.network.bridge.name: secure_net
+      com.docker.network.bridge.enable_icc: "false"  # Isolation inter-conteneurs
+      com.docker.network.bridge.enable_ip_masquerade: "true"  # NAT pour internet
+    ipam:
+      driver: default
+      config:
+        - subnet: 10.10.0.0/16
+          gateway: 10.10.0.1
+
+# Configuration du volume persistant de 60GB
+volumes:
+  app_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind,size=64424509440  # 60GB en bytes
+      device: ${PWD}/data        # Chemin hôte (créer ce dossier)

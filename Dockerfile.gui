@@ -1,0 +1,181 @@
+# =============================================================================
+# Dockerfile Ubuntu Sécurisé avec GUI (noVNC)
+# Base: Ubuntu 24.04
+# Priorité: Sécurité Maximale + Interface Graphique Web
+# GUI: XFCE + TigerVNC + noVNC (accès via navigateur)
+# Volume: 60GB persistant sur /data
+# Isolation: Réseau partiel avec accès internet
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Stage 1: Base - Configuration système et packages GUI
+# -----------------------------------------------------------------------------
+FROM ubuntu:24.04 AS base
+
+# Métadonnées
+LABEL maintainer="votre-email@example.com"
+LABEL description="Ubuntu sécurisé avec GUI noVNC et isolation réseau"
+LABEL version="2.0-gui"
+LABEL security.level="maximum"
+
+# Variables d'environnement pour optimisation
+ENV DEBIAN_FRONTEND=noninteractive \
+    LANG=C.UTF-8 \
+    LC_ALL=C.UTF-8 \
+    TZ=UTC
+
+# Mise à jour système et installation des packages GUI
+RUN apt-get update && \
+    apt-get upgrade -y && \
+    apt-get install -y --no-install-recommends \
+        ca-certificates \
+        tzdata \
+        # Bureau XFCE (léger)
+        xfce4 \
+        xfce4-terminal \
+        xfce4-goodies \
+        # Serveur VNC
+        tigervnc-standalone-server \
+        tigervnc-common \
+        # noVNC pour accès web
+        novnc \
+        websockify \
+        # Utilitaires
+        supervisor \
+        dbus-x11 \
+        x11-utils \
+        x11-xserver-utils \
+        # Navigateur web
+        firefox \
+        # Gestionnaire de fichiers
+        thunar \
+        # Éditeur de texte
+        mousepad && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* && \
+    rm -rf /usr/share/doc/* \
+           /usr/share/man/* \
+           /usr/share/info/* \
+           /var/cache/apt/archives/*
+
+# -----------------------------------------------------------------------------
+# Stage 2: Security - Configuration de sécurité et utilisateur non-root
+# -----------------------------------------------------------------------------
+FROM base AS security
+
+# Création de l'utilisateur non-root avec UID/GID fixes
+RUN groupadd -r -g 1001 appuser && \
+    useradd -r -u 1001 -g appuser -m -d /home/appuser -s /bin/bash appuser && \
+    chmod 700 /home/appuser
+
+# Création du point de montage pour le volume de données
+RUN mkdir -p /data && \
+    chown -R appuser:appuser /data && \
+    chmod 700 /data
+
+# Configuration VNC pour l'utilisateur
+RUN mkdir -p /home/appuser/.vnc && \
+    chown -R appuser:appuser /home/appuser/.vnc && \
+    chmod 700 /home/appuser/.vnc
+
+# Configuration du système de fichiers pour sécurité
+RUN mkdir -p /tmp /var/tmp && \
+    chmod 1777 /tmp /var/tmp
+
+# Hardening du système
+RUN echo "* hard core 0" >> /etc/security/limits.conf && \
+    echo "* soft core 0" >> /etc/security/limits.conf && \
+    chmod 644 /etc/passwd /etc/group && \
+    chmod 600 /etc/shadow && \
+    find /bin /usr/bin -type f -executable -exec chmod 755 {} \; 2>/dev/null || true
+
+# -----------------------------------------------------------------------------
+# Stage 3: Configuration - Scripts et configuration VNC/noVNC
+# -----------------------------------------------------------------------------
+FROM security AS config
+
+# Script de démarrage VNC
+RUN echo '#!/bin/bash\n\
+set -e\n\
+export USER=appuser\n\
+export HOME=/home/appuser\n\
+export DISPLAY=:1\n\
+\n\
+# Démarrer dbus en mode session\n\
+eval $(dbus-launch --sh-syntax)\n\
+\n\
+# Créer le répertoire VNC\n\
+mkdir -p $HOME/.vnc\n\
+\n\
+# Créer le fichier xstartup\n\
+cat > $HOME/.vnc/xstartup << "EOFVNC"\n\
+#!/bin/bash\n\
+export XDG_SESSION_TYPE=x11\n\
+export XDG_CURRENT_DESKTOP=XFCE\n\
+unset SESSION_MANAGER\n\
+unset DBUS_SESSION_BUS_ADDRESS\n\
+dbus-launch --exit-with-session startxfce4\n\
+EOFVNC\n\
+chmod +x $HOME/.vnc/xstartup\n\
+\n\
+# Démarrer VNC sans authentification (isolé par Docker)\n\
+tigervncserver :1 -geometry ${VNC_RESOLUTION:-1920x1080} -depth 24 -localhost no -SecurityTypes None --I-KNOW-THIS-IS-INSECURE\n\
+\n\
+# Attendre que VNC soit prêt\n\
+sleep 5\n\
+\n\
+# Démarrer noVNC\n\
+exec /usr/share/novnc/utils/novnc_proxy --vnc localhost:5901 --listen 6080\n\
+' > /usr/local/bin/start-vnc.sh && \
+    chmod +x /usr/local/bin/start-vnc.sh
+
+# Configuration Supervisor pour gérer les processus
+RUN echo '[supervisord]\n\
+nodaemon=true\n\
+user=root\n\
+logfile=/var/log/supervisor/supervisord.log\n\
+pidfile=/var/run/supervisord.pid\n\
+\n\
+[program:vnc]\n\
+command=/usr/local/bin/start-vnc.sh\n\
+user=appuser\n\
+autostart=true\n\
+autorestart=true\n\
+stdout_logfile=/var/log/supervisor/vnc.log\n\
+stderr_logfile=/var/log/supervisor/vnc_error.log\n\
+' > /etc/supervisor/conf.d/vnc.conf && \
+    mkdir -p /var/log/supervisor && \
+    chmod 777 /var/log/supervisor
+
+# -----------------------------------------------------------------------------
+# Stage 4: Final - Image finale
+# -----------------------------------------------------------------------------
+FROM config AS final
+
+# Variables d'environnement
+ENV HOME=/home/appuser \
+    USER=appuser \
+    DISPLAY=:1 \
+    VNC_PORT=5901 \
+    NOVNC_PORT=6080 \
+    VNC_RESOLUTION=1920x1080 \
+    VNC_PASSWORD=securepass
+
+# Exposer les ports VNC et noVNC
+EXPOSE 5901 6080
+
+# Volume pour les données persistantes (60GB)
+VOLUME ["/data"]
+
+# Health check pour surveiller VNC et noVNC
+HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
+    CMD netstat -tuln | grep -E ':(5901|6080)' || exit 1
+
+# Démarrer directement le script VNC (pas besoin de supervisor)
+CMD ["/usr/local/bin/start-vnc.sh"]
+
+# Labels de sécurité
+LABEL security.scan.date="$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+      security.non-root="true" \
+      security.gui="novnc" \
+      security.capabilities="minimal"

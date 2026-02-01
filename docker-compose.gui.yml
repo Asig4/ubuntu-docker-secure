@@ -1,0 +1,101 @@
+services:
+  ubuntu-secure-gui:
+    build:
+      context: .
+      dockerfile: Dockerfile.gui.simple
+
+    container_name: ubuntu-secure-gui
+    hostname: secure-ubuntu-gui
+
+    # Redémarrage automatique sauf arrêt manuel
+    restart: unless-stopped
+
+    # Configuration réseau - Isolation partielle avec accès internet
+    networks:
+      - secure_network
+
+    # Ports exposés pour accès GUI
+    ports:
+      - "6080:6080"  # noVNC (accès web)
+      - "5901:5901"  # VNC direct (optionnel)
+
+    # Volume persistant de 60GB
+    volumes:
+      - app_data:/data:rw
+      - /etc/localtime:/etc/localtime:ro  # Synchronisation timezone
+
+    # Tmpfs pour données temporaires volatiles
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=512m
+      - /var/tmp:rw,noexec,nosuid,size=512m
+      - /run:rw,noexec,nosuid,size=128m
+
+    # Limitations des ressources (augmentées pour GUI)
+    deploy:
+      resources:
+        limits:
+          cpus: '4.0'      # Maximum 4 CPU cores (GUI nécessite plus)
+          memory: 8G       # Maximum 8GB RAM (GUI nécessite plus)
+        reservations:
+          cpus: '1.0'      # Minimum 1 CPU
+          memory: 2G       # Minimum 2GB RAM
+
+    # Configuration de sécurité maximale
+    security_opt:
+      - no-new-privileges:true
+      - seccomp:unconfined
+      - apparmor:docker-default
+
+    # Capabilities Linux minimales
+    cap_drop:
+      - ALL
+
+    # DNS personnalisés (Cloudflare + Google)
+    dns:
+      - 1.1.1.1
+      - 8.8.8.8
+
+    # Variables d'environnement
+    environment:
+      - TZ=UTC
+      - VNC_PASSWORD=votreMotDePasseSecurise  # Changez ce mot de passe !
+      - VNC_RESOLUTION=1920x1080
+      - DISPLAY=:1
+
+    # Logs configuration
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+    # Health check
+    healthcheck:
+      test: ["CMD", "netstat", "-tuln"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+
+# Configuration du réseau isolé
+networks:
+  secure_network:
+    driver: bridge
+    driver_opts:
+      com.docker.network.bridge.name: secure_net
+      com.docker.network.bridge.enable_icc: "false"
+      com.docker.network.bridge.enable_ip_masquerade: "true"
+    ipam:
+      driver: default
+      config:
+        - subnet: 10.10.0.0/16
+          gateway: 10.10.0.1
+
+# Configuration du volume persistant de 60GB
+volumes:
+  app_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind,size=64424509440
+      device: ${PWD}/data

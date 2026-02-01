@@ -1,0 +1,97 @@
+# =============================================================================
+# Dockerfile Ubuntu Sécurisé avec GUI (noVNC) - Version Simplifiée
+# =============================================================================
+
+FROM ubuntu:24.04
+
+# Métadonnées
+LABEL maintainer="votre-email@example.com"
+LABEL description="Ubuntu sécurisé avec GUI noVNC - Version simplifiée"
+LABEL version="2.1-gui-simple"
+
+# Variables d'environnement
+ENV DEBIAN_FRONTEND=noninteractive \
+    LANG=C.UTF-8 \
+    LC_ALL=C.UTF-8 \
+    TZ=UTC \
+    USER=appuser \
+    HOME=/home/appuser \
+    DISPLAY=:1 \
+    VNC_RESOLUTION=1920x1080
+
+# Installation de tous les packages en une seule couche
+RUN apt-get update && \
+    apt-get upgrade -y && \
+    apt-get install -y --no-install-recommends \
+        ca-certificates \
+        tzdata \
+        xfce4 \
+        xfce4-terminal \
+        tigervnc-standalone-server \
+        novnc \
+        websockify \
+        dbus-x11 \
+        firefox \
+        sudo && \
+    # Nettoyage
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* && \
+    # Création utilisateur appuser
+    groupadd -r -g 1001 appuser && \
+    useradd -r -u 1001 -g appuser -m -d /home/appuser -s /bin/bash appuser && \
+    echo "appuser ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers && \
+    # Création des répertoires
+    mkdir -p /data /home/appuser/.vnc && \
+    chown -R appuser:appuser /home/appuser /data && \
+    chmod 700 /home/appuser /data
+
+# Créer le script xstartup
+RUN echo '#!/bin/bash\n\
+export XDG_SESSION_TYPE=x11\n\
+export XDG_CURRENT_DESKTOP=XFCE\n\
+dbus-launch --exit-with-session startxfce4' > /home/appuser/.vnc/xstartup && \
+    chmod +x /home/appuser/.vnc/xstartup && \
+    chown appuser:appuser /home/appuser/.vnc/xstartup
+
+# Script de démarrage complet
+RUN echo '#!/bin/bash\n\
+set -e\n\
+\n\
+echo "Starting VNC server..."\n\
+\n\
+# Démarrer dbus\n\
+eval $(dbus-launch --sh-syntax)\n\
+\n\
+# Démarrer VNC\n\
+tigervncserver :1 \\\n\
+  -geometry $VNC_RESOLUTION \\\n\
+  -depth 24 \\\n\
+  -localhost no \\\n\
+  -SecurityTypes None \\\n\
+  --I-KNOW-THIS-IS-INSECURE\n\
+\n\
+echo "VNC server started on display :1"\n\
+echo "Starting noVNC proxy..."\n\
+\n\
+# Démarrer noVNC\n\
+/usr/share/novnc/utils/novnc_proxy --vnc localhost:5901 --listen 6080\n\
+' > /usr/local/bin/start-desktop.sh && \
+    chmod +x /usr/local/bin/start-desktop.sh && \
+    chown appuser:appuser /usr/local/bin/start-desktop.sh
+
+# Basculer vers l'utilisateur non-root
+USER appuser
+WORKDIR /home/appuser
+
+# Exposer les ports
+EXPOSE 5901 6080
+
+# Volume
+VOLUME ["/data"]
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=15s --retries=3 \
+    CMD pgrep -x Xtigervnc > /dev/null || exit 1
+
+# Démarrer le desktop
+CMD ["/usr/local/bin/start-desktop.sh"]

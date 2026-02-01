@@ -1,0 +1,18 @@
+# Données du volume Docker
+data/
+
+# Logs
+*.log
+
+# Fichiers temporaires
+*.tmp
+*.swp
+*~
+
+# Fichiers système
+.DS_Store
+Thumbs.db
+
+# Secrets (si ajoutés plus tard)
+*.env
+secrets/
