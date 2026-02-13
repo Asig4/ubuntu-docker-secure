@@ -1,0 +1,18 @@
+# ============================================================
+# Grafana Contact Points Provisioning — Bloomberg Dashboard
+# ============================================================
+# Placeholder webhook — replace URL via Grafana UI or here
+
+apiVersion: 1
+
+contactPoints:
+  - orgId: 1
+    name: default-webhook
+    receivers:
+      - uid: bloomberg-webhook
+        type: webhook
+        settings:
+          url: "http://localhost:9999/webhook/alerts"
+          httpMethod: POST
+          maxAlerts: 10
+        disableResolveMessage: false

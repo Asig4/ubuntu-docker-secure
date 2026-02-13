@@ -1,0 +1,304 @@
+{
+  "uid": "bloomberg-portfolio",
+  "title": "Bloomberg — Portfolio",
+  "description": "Multi-asset portfolio overview with price table, evolution chart and distribution pie",
+  "tags": ["bloomberg", "portfolio", "overview"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "30s",
+  "time": { "from": "now-1h", "to": "now" },
+  "fiscalYearStartMonth": 0,
+  "liveNow": true,
+  "style": "dark",
+  "editable": true,
+  "graphTooltip": 1,
+  "templating": { "list": [] },
+  "panels": [
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "Tracked Assets",
+      "gridPos": { "h": 4, "w": 8, "x": 0, "y": 0 },
+      "transparent": true,
+      "datasource": { "type": "influxdb", "uid": "influxdb" },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "influxdb", "uid": "influxdb" },
+          "query": "from(bucket: \"markets\")\n  |> range(start: -5m)\n  |> filter(fn: (r) => r._measurement == \"price\")\n  |> filter(fn: (r) => r._field == \"last\")\n  |> last()\n  |> group()\n  |> count()"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "fixed", "fixedColor": "#ff8c00" },
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "#ff8c00", "value": null }] }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "graphMode": "none",
+        "colorMode": "value",
+        "justifyMode": "auto",
+        "textMode": "auto",
+        "wideLayout": true,
+        "showPercentChange": false,
+        "orientation": "horizontal"
+      }
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Active Sources",
+      "gridPos": { "h": 4, "w": 8, "x": 8, "y": 0 },
+      "transparent": true,
+      "datasource": { "type": "influxdb", "uid": "influxdb" },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "influxdb", "uid": "influxdb" },
+          "query": "from(bucket: \"markets\")\n  |> range(start: -5m)\n  |> filter(fn: (r) => r._measurement == \"price\")\n  |> filter(fn: (r) => r._field == \"last\")\n  |> last()\n  |> group()\n  |> distinct(column: \"exchange\")\n  |> count()"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "fixed", "fixedColor": "#00d4aa" },
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "#00d4aa", "value": null }] }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "graphMode": "none",
+        "colorMode": "value",
+        "justifyMode": "auto",
+        "textMode": "auto",
+        "wideLayout": true,
+        "showPercentChange": false,
+        "orientation": "horizontal"
+      }
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "News (24h)",
+      "gridPos": { "h": 4, "w": 8, "x": 16, "y": 0 },
+      "transparent": true,
+      "datasource": { "type": "influxdb", "uid": "influxdb" },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "influxdb", "uid": "influxdb" },
+          "query": "from(bucket: \"news\")\n  |> range(start: -24h)\n  |> filter(fn: (r) => r._measurement == \"article\")\n  |> filter(fn: (r) => r._field == \"title\")\n  |> group()\n  |> count()"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "fixed", "fixedColor": "#94a3b8" },
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "#94a3b8", "value": null }] }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "graphMode": "none",
+        "colorMode": "value",
+        "justifyMode": "auto",
+        "textMode": "auto",
+        "wideLayout": true,
+        "showPercentChange": false,
+        "orientation": "horizontal"
+      }
+    },
+    {
+      "id": 4,
+      "type": "table",
+      "title": "ALL ASSETS",
+      "gridPos": { "h": 16, "w": 24, "x": 0, "y": 4 },
+      "transparent": true,
+      "datasource": { "type": "influxdb", "uid": "influxdb" },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "influxdb", "uid": "influxdb" },
+          "query": "from(bucket: \"markets\")\n  |> range(start: -5m)\n  |> filter(fn: (r) => r._measurement == \"price\")\n  |> filter(fn: (r) => r._field == \"last\" or r._field == \"change_pct_24h\" or r._field == \"volume_24h\" or r._field == \"market_cap\")\n  |> last()\n  |> pivot(rowKey: [\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n  |> group()\n  |> sort(columns: [\"symbol\"])"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": { "_start": true, "_stop": true, "_measurement": true, "_time": true },
+            "indexByName": { "symbol": 0, "asset_type": 1, "exchange": 2, "last": 3, "change_pct_24h": 4, "volume_24h": 5, "market_cap": 6 },
+            "renameByName": {
+              "symbol": "Symbol",
+              "asset_type": "Type",
+              "exchange": "Source",
+              "last": "Price",
+              "change_pct_24h": "Change 24h",
+              "volume_24h": "Volume 24h",
+              "market_cap": "Market Cap"
+            }
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "custom": {
+            "align": "auto",
+            "cellOptions": { "type": "auto" },
+            "filterable": true,
+            "inspect": false
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [{ "color": "#e2e8f0", "value": null }]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "Symbol" },
+            "properties": [
+              { "id": "custom.width", "value": 100 },
+              { "id": "color", "value": { "mode": "fixed", "fixedColor": "#ff8c00" } },
+              { "id": "custom.cellOptions", "value": { "type": "color-text" } }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "Price" },
+            "properties": [
+              { "id": "unit", "value": "currencyUSD" },
+              { "id": "decimals", "value": 2 }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "Change 24h" },
+            "properties": [
+              { "id": "unit", "value": "percent" },
+              { "id": "decimals", "value": 2 },
+              { "id": "thresholds", "value": { "mode": "absolute", "steps": [{ "color": "#ff3b3b", "value": null }, { "color": "#00d4aa", "value": 0 }] } },
+              { "id": "custom.cellOptions", "value": { "type": "color-text" } }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "Volume 24h" },
+            "properties": [
+              { "id": "unit", "value": "currencyUSD" },
+              { "id": "decimals", "value": 0 }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "Market Cap" },
+            "properties": [
+              { "id": "unit", "value": "currencyUSD" },
+              { "id": "decimals", "value": 0 }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "footer": { "show": false },
+        "sortBy": [{ "displayName": "Symbol", "desc": false }]
+      }
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "PRICE EVOLUTION — All Assets",
+      "gridPos": { "h": 10, "w": 12, "x": 0, "y": 20 },
+      "transparent": true,
+      "datasource": { "type": "influxdb", "uid": "influxdb" },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "influxdb", "uid": "influxdb" },
+          "query": "from(bucket: \"markets\")\n  |> range(start: -1h)\n  |> filter(fn: (r) => r._measurement == \"price\")\n  |> filter(fn: (r) => r._field == \"change_pct_24h\")\n  |> aggregateWindow(every: 1m, fn: last, createEmpty: false)"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "axisBorderShow": false,
+            "axisColorMode": "text",
+            "axisPlacement": "auto",
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "lineInterpolation": "smooth",
+            "lineWidth": 1,
+            "pointSize": 1,
+            "showPoints": "never",
+            "spanNulls": true,
+            "stacking": { "group": "A", "mode": "none" },
+            "thresholdsStyle": { "mode": "off" }
+          },
+          "unit": "percent",
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom", "calcs": ["lastNotNull"] },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      }
+    },
+    {
+      "id": 6,
+      "type": "piechart",
+      "title": "ASSET DISTRIBUTION by Type",
+      "gridPos": { "h": 10, "w": 12, "x": 12, "y": 20 },
+      "transparent": true,
+      "datasource": { "type": "influxdb", "uid": "influxdb" },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "influxdb", "uid": "influxdb" },
+          "query": "from(bucket: \"markets\")\n  |> range(start: -5m)\n  |> filter(fn: (r) => r._measurement == \"price\")\n  |> filter(fn: (r) => r._field == \"last\")\n  |> last()\n  |> group(columns: [\"asset_type\"])\n  |> count()\n  |> rename(columns: {_value: \"count\"})"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "hideFrom": { "legend": false, "tooltip": false, "viz": false } }
+        },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "crypto" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#ff8c00" } }] },
+          { "matcher": { "id": "byName", "options": "stock" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#00d4aa" } }] },
+          { "matcher": { "id": "byName", "options": "index" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#3b82f6" } }] },
+          { "matcher": { "id": "byName", "options": "forex" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#94a3b8" } }] },
+          { "matcher": { "id": "byName", "options": "commodity" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#f59e0b" } }] }
+        ]
+      },
+      "options": {
+        "legend": { "displayMode": "list", "placement": "right", "values": ["value", "percent"] },
+        "tooltip": { "mode": "single", "sort": "none" },
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "pieType": "donut",
+        "displayLabels": ["name", "percent"]
+      }
+    }
+  ],
+  "links": [
+    { "title": "Home", "url": "/d/bloomberg-home/bloomberg-home", "icon": "home-alt", "type": "link", "targetBlank": false },
+    { "title": "Deep Dive", "url": "/d/bloomberg-deep-dive/bloomberg-deep-dive", "icon": "external link", "type": "link", "targetBlank": false },
+    { "title": "Infrastructure", "url": "/d/bloomberg-infra/bloomberg-infra", "icon": "monitor", "type": "link", "targetBlank": false }
+  ],
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": { "type": "grafana", "uid": "-- Grafana --" },
+        "enable": true,
+        "hide": true,
+        "iconColor": "#ff8c00",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  }
+}

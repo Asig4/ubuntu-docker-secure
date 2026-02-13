@@ -1,0 +1,551 @@
+{
+  "uid": "bloomberg-home",
+  "title": "Bloomberg — Home",
+  "description": "Bloomberg-style market dashboard with live ticker, price charts, market grid, news feed and infrastructure status",
+  "tags": ["bloomberg", "home", "markets"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "10s",
+  "time": { "from": "now-1h", "to": "now" },
+  "fiscalYearStartMonth": 0,
+  "liveNow": true,
+  "style": "dark",
+  "editable": true,
+  "graphTooltip": 1,
+  "templating": {
+    "list": [
+      {
+        "name": "asset",
+        "type": "custom",
+        "label": "Asset",
+        "current": { "text": "BTC", "value": "BTC" },
+        "options": [
+          { "text": "BTC", "value": "BTC", "selected": true },
+          { "text": "ETH", "value": "ETH", "selected": false },
+          { "text": "SOL", "value": "SOL", "selected": false },
+          { "text": "BNB", "value": "BNB", "selected": false },
+          { "text": "XRP", "value": "XRP", "selected": false },
+          { "text": "AAPL", "value": "AAPL", "selected": false },
+          { "text": "MSFT", "value": "MSFT", "selected": false },
+          { "text": "TSLA", "value": "TSLA", "selected": false },
+          { "text": "SP500", "value": "SP500", "selected": false },
+          { "text": "NASDAQ", "value": "NASDAQ", "selected": false },
+          { "text": "EURUSD", "value": "EURUSD", "selected": false },
+          { "text": "GBPUSD", "value": "GBPUSD", "selected": false },
+          { "text": "GOLD", "value": "GOLD", "selected": false },
+          { "text": "CRUDE_OIL", "value": "CRUDE_OIL", "selected": false }
+        ],
+        "query": "BTC,ETH,SOL,BNB,XRP,AAPL,MSFT,TSLA,SP500,NASDAQ,EURUSD,GBPUSD,GOLD,CRUDE_OIL"
+      },
+      {
+        "name": "timeframe",
+        "type": "custom",
+        "label": "Timeframe",
+        "current": { "text": "1h", "value": "1h" },
+        "options": [
+          { "text": "5m", "value": "5m", "selected": false },
+          { "text": "15m", "value": "15m", "selected": false },
+          { "text": "1h", "value": "1h", "selected": true },
+          { "text": "4h", "value": "4h", "selected": false },
+          { "text": "1d", "value": "1d", "selected": false }
+        ],
+        "query": "5m,15m,1h,4h,1d"
+      },
+      {
+        "name": "exchange",
+        "type": "custom",
+        "label": "Exchange",
+        "current": { "text": "all", "value": "all" },
+        "options": [
+          { "text": "all", "value": "all", "selected": true },
+          { "text": "coingecko", "value": "coingecko", "selected": false },
+          { "text": "yahoo", "value": "yahoo", "selected": false }
+        ],
+        "query": "all,coingecko,yahoo"
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "marcusolsson-dynamictext-panel",
+      "title": "MARKET TICKER",
+      "gridPos": { "h": 3, "w": 24, "x": 0, "y": 0 },
+      "transparent": true,
+      "datasource": { "type": "influxdb", "uid": "influxdb" },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "influxdb", "uid": "influxdb" },
+          "query": "from(bucket: \"markets\")\n  |> range(start: -5m)\n  |> filter(fn: (r) => r._measurement == \"price\")\n  |> filter(fn: (r) => r._field == \"last\" or r._field == \"change_pct_24h\")\n  |> last()\n  |> pivot(rowKey: [\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n  |> group()\n  |> sort(columns: [\"symbol\"])"
+        }
+      ],
+      "options": {
+        "content": "<style>\n.ticker-band { display: flex; gap: 24px; overflow-x: auto; padding: 6px 12px; font-family: 'IBM Plex Mono', monospace; white-space: nowrap; animation: scroll-left 30s linear infinite; }\n.ticker-band:hover { animation-play-state: paused; }\n@keyframes scroll-left { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }\n.ticker-item { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; }\n.ticker-symbol { color: #ff8c00; font-weight: 700; font-size: 13px; }\n.ticker-price { color: #e2e8f0; font-size: 13px; }\n.ticker-change { font-size: 12px; font-weight: 600; }\n.ticker-up { color: #00d4aa; }\n.ticker-down { color: #ff3b3b; }\n</style>\n<div class=\"ticker-band\">\n{{#each data}}\n<div class=\"ticker-item\">\n  <span class=\"ticker-symbol\">{{symbol}}</span>\n  <span class=\"ticker-price\">${{#if last}}{{last}}{{else}}—{{/if}}</span>\n  <span class=\"ticker-change {{#if (gt change_pct_24h 0)}}ticker-up{{else}}ticker-down{{/if}}\">{{#if (gt change_pct_24h 0)}}+{{/if}}{{change_pct_24h}}%</span>\n</div>\n{{/each}}\n{{#each data}}\n<div class=\"ticker-item\">\n  <span class=\"ticker-symbol\">{{symbol}}</span>\n  <span class=\"ticker-price\">${{#if last}}{{last}}{{else}}—{{/if}}</span>\n  <span class=\"ticker-change {{#if (gt change_pct_24h 0)}}ticker-up{{else}}ticker-down{{/if}}\">{{#if (gt change_pct_24h 0)}}+{{/if}}{{change_pct_24h}}%</span>\n</div>\n{{/each}}\n</div>",
+        "contentMode": "html",
+        "defaultContent": "<div style=\"color:#ff8c00;font-family:monospace;padding:8px;\">Loading market data...</div>",
+        "editor": { "format": "auto", "language": "html" },
+        "externalStyles": [],
+        "helpers": "",
+        "renderMode": "everyRow",
+        "wrap": true
+      },
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      }
+    },
+    {
+      "id": 2,
+      "type": "timeseries",
+      "title": "${asset} — Price",
+      "gridPos": { "h": 16, "w": 14, "x": 0, "y": 3 },
+      "transparent": true,
+      "datasource": { "type": "influxdb", "uid": "influxdb" },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "influxdb", "uid": "influxdb" },
+          "query": "from(bucket: \"markets\")\n  |> range(start: -${timeframe})\n  |> filter(fn: (r) => r._measurement == \"price\")\n  |> filter(fn: (r) => r.symbol == \"${asset}\")\n  |> filter(fn: (r) => r._field == \"last\")\n  |> aggregateWindow(every: 1m, fn: last, createEmpty: false)",
+          "hide": false
+        },
+        {
+          "refId": "B",
+          "datasource": { "type": "influxdb", "uid": "influxdb" },
+          "query": "from(bucket: \"markets\")\n  |> range(start: -${timeframe})\n  |> filter(fn: (r) => r._measurement == \"price\")\n  |> filter(fn: (r) => r.symbol == \"${asset}\")\n  |> filter(fn: (r) => r._field == \"volume_24h\")\n  |> aggregateWindow(every: 1m, fn: last, createEmpty: false)",
+          "hide": false
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "fixed", "fixedColor": "#ff8c00" },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 8,
+            "gradientMode": "opacity",
+            "hideFrom": { "legend": false, "tooltip": false, "viz": false },
+            "insertNulls": false,
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "pointSize": 1,
+            "scaleDistribution": { "type": "linear" },
+            "showPoints": "never",
+            "spanNulls": true,
+            "stacking": { "group": "A", "mode": "none" },
+            "thresholdsStyle": { "mode": "off" }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null }
+            ]
+          },
+          "unit": "currencyUSD"
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byFrameRefID", "options": "B" },
+            "properties": [
+              { "id": "custom.drawStyle", "value": "bars" },
+              { "id": "custom.fillOpacity", "value": 20 },
+              { "id": "color", "value": { "mode": "fixed", "fixedColor": "#334155" } },
+              { "id": "custom.axisPlacement", "value": "right" },
+              { "id": "unit", "value": "short" },
+              { "id": "custom.lineWidth", "value": 0 }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "legend": { "displayMode": "hidden", "placement": "bottom" },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      }
+    },
+    {
+      "id": 3,
+      "type": "marcusolsson-dynamictext-panel",
+      "title": "MARKET OVERVIEW",
+      "gridPos": { "h": 16, "w": 10, "x": 14, "y": 3 },
+      "transparent": true,
+      "datasource": { "type": "influxdb", "uid": "influxdb" },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "influxdb", "uid": "influxdb" },
+          "query": "from(bucket: \"markets\")\n  |> range(start: -5m)\n  |> filter(fn: (r) => r._measurement == \"price\")\n  |> filter(fn: (r) => r._field == \"last\" or r._field == \"change_pct_24h\" or r._field == \"volume_24h\")\n  |> last()\n  |> pivot(rowKey: [\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n  |> group()\n  |> sort(columns: [\"symbol\"])"
+        }
+      ],
+      "options": {
+        "content": "<style>\n.market-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; padding: 4px; font-family: 'IBM Plex Mono', monospace; }\n.market-card { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); border-radius: 6px; padding: 8px 10px; cursor: pointer; transition: background 0.2s; }\n.market-card:hover { background: rgba(255,255,255,0.06); }\n.card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }\n.card-symbol { color: #ff8c00; font-weight: 700; font-size: 12px; }\n.card-type { color: #64748b; font-size: 9px; text-transform: uppercase; }\n.card-price { color: #e2e8f0; font-size: 15px; font-weight: 600; margin-bottom: 2px; }\n.card-change { font-size: 11px; font-weight: 600; }\n.card-up { color: #00d4aa; }\n.card-down { color: #ff3b3b; }\n.card-vol { color: #64748b; font-size: 9px; margin-top: 2px; }\n</style>\n<div class=\"market-grid\">\n{{#each data}}\n<div class=\"market-card\">\n  <div class=\"card-header\">\n    <span class=\"card-symbol\">{{symbol}}</span>\n    <span class=\"card-type\">{{asset_type}}</span>\n  </div>\n  <div class=\"card-price\">${{last}}</div>\n  <div class=\"card-change {{#if (gt change_pct_24h 0)}}card-up{{else}}card-down{{/if}}\">\n    {{#if (gt change_pct_24h 0)}}▲ +{{else}}▼ {{/if}}{{change_pct_24h}}%\n  </div>\n  {{#if volume_24h}}<div class=\"card-vol\">Vol: {{volume_24h}}</div>{{/if}}\n</div>\n{{/each}}\n</div>",
+        "contentMode": "html",
+        "defaultContent": "<div style=\"color:#64748b;font-family:monospace;padding:8px;\">Loading assets...</div>",
+        "editor": { "format": "auto", "language": "html" },
+        "externalStyles": [],
+        "helpers": "",
+        "renderMode": "everyRow",
+        "wrap": true
+      },
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      }
+    },
+    {
+      "id": 4,
+      "type": "marcusolsson-dynamictext-panel",
+      "title": "NEWS FEED",
+      "gridPos": { "h": 12, "w": 12, "x": 0, "y": 19 },
+      "transparent": true,
+      "datasource": { "type": "influxdb", "uid": "influxdb" },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "influxdb", "uid": "influxdb" },
+          "query": "from(bucket: \"news\")\n  |> range(start: -24h)\n  |> filter(fn: (r) => r._measurement == \"article\")\n  |> filter(fn: (r) => r._field == \"title\" or r._field == \"url\" or r._field == \"score\")\n  |> pivot(rowKey: [\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n  |> sort(columns: [\"_time\"], desc: true)\n  |> limit(n: 20)"
+        }
+      ],
+      "options": {
+        "content": "<style>\n.news-list { font-family: 'IBM Plex Mono', monospace; }\n.news-item { padding: 8px 10px; border-bottom: 1px solid rgba(255,255,255,0.05); display: flex; align-items: flex-start; gap: 8px; }\n.news-item:hover { background: rgba(255,255,255,0.03); }\n.news-sentiment { font-size: 14px; flex-shrink: 0; margin-top: 2px; }\n.news-body { flex: 1; }\n.news-title { color: #e2e8f0; font-size: 12px; line-height: 1.4; }\n.news-title a { color: #e2e8f0; text-decoration: none; }\n.news-title a:hover { color: #ff8c00; }\n.news-meta { color: #64748b; font-size: 10px; margin-top: 3px; }\n.news-source { color: #ff8c00; }\n.news-asset { color: #94a3b8; background: rgba(255,255,255,0.05); padding: 1px 5px; border-radius: 3px; font-size: 9px; }\n</style>\n<div class=\"news-list\">\n{{#each data}}\n<div class=\"news-item\">\n  <span class=\"news-sentiment\">{{#if (gt score 0.05)}}🟢{{else if (lt score -0.05)}}🔴{{else}}⚪{{/if}}</span>\n  <div class=\"news-body\">\n    <div class=\"news-title\"><a href=\"{{url}}\" target=\"_blank\">{{title}}</a></div>\n    <div class=\"news-meta\">\n      <span class=\"news-source\">{{source}}</span> · {{_time}}\n      {{#if related_asset}}<span class=\"news-asset\">{{related_asset}}</span>{{/if}}\n    </div>\n  </div>\n</div>\n{{/each}}\n</div>",
+        "contentMode": "html",
+        "defaultContent": "<div style=\"color:#64748b;font-family:monospace;padding:8px;\">Loading news...</div>",
+        "editor": { "format": "auto", "language": "html" },
+        "externalStyles": [],
+        "helpers": "",
+        "renderMode": "everyRow",
+        "wrap": true
+      },
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      }
+    },
+    {
+      "id": 5,
+      "type": "table",
+      "title": "ACTIVE ALERTS",
+      "gridPos": { "h": 12, "w": 6, "x": 12, "y": 19 },
+      "transparent": true,
+      "datasource": { "type": "datasource", "uid": "-- Grafana --" },
+      "targets": [
+        {
+          "refId": "A",
+          "queryType": "randomWalk"
+        }
+      ],
+      "transformations": [],
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "footer": { "show": false }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "#00d4aa", "value": null },
+              { "color": "#ff8c00", "value": 1 },
+              { "color": "#ff3b3b", "value": 2 }
+            ]
+          },
+          "custom": {
+            "align": "auto",
+            "cellOptions": { "type": "auto" },
+            "filterable": false,
+            "inspect": false
+          }
+        },
+        "overrides": []
+      },
+      "pluginVersion": "11.4.0"
+    },
+    {
+      "id": 6,
+      "type": "stat",
+      "title": "CPU",
+      "gridPos": { "h": 6, "w": 3, "x": 18, "y": 19 },
+      "transparent": true,
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "100 - (avg(rate(node_cpu_seconds_total{mode=\"idle\"}[5m])) * 100)",
+          "legendFormat": "CPU"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "#00d4aa", "value": null },
+              { "color": "#ff8c00", "value": 60 },
+              { "color": "#ff3b3b", "value": 80 }
+            ]
+          },
+          "unit": "percent",
+          "min": 0,
+          "max": 100
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "graphMode": "area",
+        "colorMode": "value",
+        "justifyMode": "auto",
+        "textMode": "auto",
+        "wideLayout": true,
+        "showPercentChange": false,
+        "orientation": "horizontal"
+      }
+    },
+    {
+      "id": 7,
+      "type": "stat",
+      "title": "RAM",
+      "gridPos": { "h": 6, "w": 3, "x": 21, "y": 19 },
+      "transparent": true,
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "(1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100",
+          "legendFormat": "RAM"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "#00d4aa", "value": null },
+              { "color": "#ff8c00", "value": 70 },
+              { "color": "#ff3b3b", "value": 85 }
+            ]
+          },
+          "unit": "percent",
+          "min": 0,
+          "max": 100
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "graphMode": "area",
+        "colorMode": "value",
+        "justifyMode": "auto",
+        "textMode": "auto",
+        "wideLayout": true,
+        "showPercentChange": false,
+        "orientation": "horizontal"
+      }
+    },
+    {
+      "id": 8,
+      "type": "stat",
+      "title": "Disk",
+      "gridPos": { "h": 6, "w": 3, "x": 18, "y": 25 },
+      "transparent": true,
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "(1 - (node_filesystem_avail_bytes{mountpoint=\"/\",fstype!=\"tmpfs\"} / node_filesystem_size_bytes{mountpoint=\"/\",fstype!=\"tmpfs\"})) * 100",
+          "legendFormat": "Disk"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "#00d4aa", "value": null },
+              { "color": "#ff8c00", "value": 70 },
+              { "color": "#ff3b3b", "value": 90 }
+            ]
+          },
+          "unit": "percent",
+          "min": 0,
+          "max": 100
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "graphMode": "area",
+        "colorMode": "value",
+        "justifyMode": "auto",
+        "textMode": "auto",
+        "wideLayout": true,
+        "showPercentChange": false,
+        "orientation": "horizontal"
+      }
+    },
+    {
+      "id": 9,
+      "type": "stat",
+      "title": "Containers",
+      "gridPos": { "h": 6, "w": 3, "x": 21, "y": 25 },
+      "transparent": true,
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "count(container_last_seen{name=~\"bloomberg.*\"})",
+          "legendFormat": "Running"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "#ff3b3b", "value": null },
+              { "color": "#ff8c00", "value": 5 },
+              { "color": "#00d4aa", "value": 8 }
+            ]
+          },
+          "unit": "none"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "graphMode": "none",
+        "colorMode": "value",
+        "justifyMode": "auto",
+        "textMode": "auto",
+        "wideLayout": true,
+        "showPercentChange": false,
+        "orientation": "horizontal"
+      }
+    },
+    {
+      "id": 10,
+      "type": "grafana-clock-panel",
+      "title": "NEW YORK",
+      "gridPos": { "h": 3, "w": 5, "x": 0, "y": 31 },
+      "transparent": true,
+      "options": {
+        "mode": "time",
+        "clockType": "24 hour",
+        "timezone": "America/New_York",
+        "bgColor": "transparent",
+        "fontMono": true,
+        "dateSettings": { "showDate": true, "dateFormat": "DD/MM", "locale": "en", "fontSize": "14px" },
+        "timeSettings": { "fontSize": "28px", "fontWeight": "bold" },
+        "timezoneSettings": { "showTimezone": true, "zoneFormat": "name", "fontSize": "12px" }
+      },
+      "fieldConfig": { "defaults": {}, "overrides": [] }
+    },
+    {
+      "id": 11,
+      "type": "grafana-clock-panel",
+      "title": "LONDON",
+      "gridPos": { "h": 3, "w": 5, "x": 5, "y": 31 },
+      "transparent": true,
+      "options": {
+        "mode": "time",
+        "clockType": "24 hour",
+        "timezone": "Europe/London",
+        "bgColor": "transparent",
+        "fontMono": true,
+        "dateSettings": { "showDate": true, "dateFormat": "DD/MM", "locale": "en", "fontSize": "14px" },
+        "timeSettings": { "fontSize": "28px", "fontWeight": "bold" },
+        "timezoneSettings": { "showTimezone": true, "zoneFormat": "name", "fontSize": "12px" }
+      },
+      "fieldConfig": { "defaults": {}, "overrides": [] }
+    },
+    {
+      "id": 12,
+      "type": "grafana-clock-panel",
+      "title": "PARIS",
+      "gridPos": { "h": 3, "w": 5, "x": 10, "y": 31 },
+      "transparent": true,
+      "options": {
+        "mode": "time",
+        "clockType": "24 hour",
+        "timezone": "Europe/Paris",
+        "bgColor": "transparent",
+        "fontMono": true,
+        "dateSettings": { "showDate": true, "dateFormat": "DD/MM", "locale": "en", "fontSize": "14px" },
+        "timeSettings": { "fontSize": "28px", "fontWeight": "bold" },
+        "timezoneSettings": { "showTimezone": true, "zoneFormat": "name", "fontSize": "12px" }
+      },
+      "fieldConfig": { "defaults": {}, "overrides": [] }
+    },
+    {
+      "id": 13,
+      "type": "grafana-clock-panel",
+      "title": "TOKYO",
+      "gridPos": { "h": 3, "w": 5, "x": 15, "y": 31 },
+      "transparent": true,
+      "options": {
+        "mode": "time",
+        "clockType": "24 hour",
+        "timezone": "Asia/Tokyo",
+        "bgColor": "transparent",
+        "fontMono": true,
+        "dateSettings": { "showDate": true, "dateFormat": "DD/MM", "locale": "en", "fontSize": "14px" },
+        "timeSettings": { "fontSize": "28px", "fontWeight": "bold" },
+        "timezoneSettings": { "showTimezone": true, "zoneFormat": "name", "fontSize": "12px" }
+      },
+      "fieldConfig": { "defaults": {}, "overrides": [] }
+    },
+    {
+      "id": 14,
+      "type": "grafana-clock-panel",
+      "title": "SYDNEY",
+      "gridPos": { "h": 3, "w": 4, "x": 20, "y": 31 },
+      "transparent": true,
+      "options": {
+        "mode": "time",
+        "clockType": "24 hour",
+        "timezone": "Australia/Sydney",
+        "bgColor": "transparent",
+        "fontMono": true,
+        "dateSettings": { "showDate": true, "dateFormat": "DD/MM", "locale": "en", "fontSize": "14px" },
+        "timeSettings": { "fontSize": "28px", "fontWeight": "bold" },
+        "timezoneSettings": { "showTimezone": true, "zoneFormat": "name", "fontSize": "12px" }
+      },
+      "fieldConfig": { "defaults": {}, "overrides": [] }
+    }
+  ],
+  "links": [
+    { "title": "Deep Dive", "url": "/d/bloomberg-deep-dive/bloomberg-deep-dive?var-asset=${asset}", "icon": "external link", "type": "link", "targetBlank": false },
+    { "title": "Portfolio", "url": "/d/bloomberg-portfolio/bloomberg-portfolio", "icon": "apps", "type": "link", "targetBlank": false },
+    { "title": "Infrastructure", "url": "/d/bloomberg-infra/bloomberg-infra", "icon": "monitor", "type": "link", "targetBlank": false }
+  ],
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": { "type": "grafana", "uid": "-- Grafana --" },
+        "enable": true,
+        "hide": true,
+        "iconColor": "#ff8c00",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  }
+}

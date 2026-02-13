@@ -8,6 +8,7 @@ apiVersion: 1
 datasources:
   # --- InfluxDB (données marchés, news, custom) ---
   - name: InfluxDB
+    uid: influxdb
     type: influxdb
     access: proxy
     url: http://bloomberg-influxdb:8086
@@ -23,6 +24,7 @@ datasources:
 
   # --- PostgreSQL (config, watchlists, users) ---
   - name: PostgreSQL
+    uid: postgresql
     type: postgres
     access: proxy
     url: bloomberg-postgres:5432
@@ -40,6 +42,7 @@ datasources:
 
   # --- Prometheus (métriques infrastructure) ---
   - name: Prometheus
+    uid: prometheus
     type: prometheus
     access: proxy
     url: http://bloomberg-prometheus:9090

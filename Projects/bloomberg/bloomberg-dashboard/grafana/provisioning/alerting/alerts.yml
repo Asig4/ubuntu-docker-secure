@@ -1,0 +1,356 @@
+# ============================================================
+# Grafana Alert Rules Provisioning — Bloomberg Dashboard
+# ============================================================
+# 6 rules: 2 market, 2 collector dead-man, 2 infrastructure
+
+apiVersion: 1
+
+groups:
+  - orgId: 1
+    name: Market Alerts
+    folder: Bloomberg
+    interval: 1m
+    rules:
+      # 1. BTC Price Alert — BTC > $100,000
+      - uid: bloomberg-btc-price
+        title: BTC Price Above $100k
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: influxdb
+            model:
+              refId: A
+              query: |
+                from(bucket: "markets")
+                  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)
+                  |> filter(fn: (r) => r._measurement == "price")
+                  |> filter(fn: (r) => r.symbol == "BTC")
+                  |> filter(fn: (r) => r._field == "last")
+                  |> last()
+          - refId: B
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: __expr__
+            model:
+              type: reduce
+              refId: B
+              expression: A
+              reducer: last
+              settings:
+                mode: dropNN
+          - refId: C
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              refId: C
+              expression: B
+              conditions:
+                - evaluator:
+                    type: gt
+                    params:
+                      - 100000
+                  operator:
+                    type: and
+        noDataState: NoData
+        execErrState: Error
+        for: 2m
+        labels:
+          severity: warning
+          asset: BTC
+        annotations:
+          summary: "BTC price is above $100,000"
+          description: "Bitcoin price has exceeded $100k. Current value: {{ $values.B }}"
+
+      # 2. High Volatility — any asset change_pct_24h > 10% or < -10%
+      - uid: bloomberg-high-volatility
+        title: High Volatility Detected
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: influxdb
+            model:
+              refId: A
+              query: |
+                from(bucket: "markets")
+                  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)
+                  |> filter(fn: (r) => r._measurement == "price")
+                  |> filter(fn: (r) => r._field == "change_pct_24h")
+                  |> last()
+                  |> map(fn: (r) => ({r with _value: if r._value < 0.0 then -r._value else r._value}))
+                  |> filter(fn: (r) => r._value > 10.0)
+          - refId: B
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: __expr__
+            model:
+              type: reduce
+              refId: B
+              expression: A
+              reducer: last
+              settings:
+                mode: dropNN
+          - refId: C
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              refId: C
+              expression: B
+              conditions:
+                - evaluator:
+                    type: gt
+                    params:
+                      - 0
+                  operator:
+                    type: and
+        noDataState: OK
+        execErrState: Error
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High volatility detected"
+          description: "An asset has moved more than 10% in 24h."
+
+  - orgId: 1
+    name: Collector Health
+    folder: Bloomberg
+    interval: 1m
+    rules:
+      # 3. Market Feeder Dead — 0 price points in 5 minutes
+      - uid: bloomberg-market-feeder-dead
+        title: Market Feeder Dead
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: influxdb
+            model:
+              refId: A
+              query: |
+                from(bucket: "markets")
+                  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)
+                  |> filter(fn: (r) => r._measurement == "price")
+                  |> filter(fn: (r) => r._field == "last")
+                  |> group()
+                  |> count()
+          - refId: B
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: __expr__
+            model:
+              type: reduce
+              refId: B
+              expression: A
+              reducer: last
+              settings:
+                mode: replaceNN
+                replaceWithValue: 0
+          - refId: C
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              refId: C
+              expression: B
+              conditions:
+                - evaluator:
+                    type: lt
+                    params:
+                      - 1
+                  operator:
+                    type: and
+        noDataState: Alerting
+        execErrState: Alerting
+        for: 5m
+        labels:
+          severity: critical
+          component: market-feeder
+        annotations:
+          summary: "Market Feeder is not writing data"
+          description: "No price data points written to InfluxDB in the last 5 minutes. The market-feeder collector may be down."
+
+      # 4. News Feeder Dead — 0 article points in 10 minutes
+      - uid: bloomberg-news-feeder-dead
+        title: News Feeder Dead
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: influxdb
+            model:
+              refId: A
+              query: |
+                from(bucket: "news")
+                  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)
+                  |> filter(fn: (r) => r._measurement == "article")
+                  |> filter(fn: (r) => r._field == "title")
+                  |> group()
+                  |> count()
+          - refId: B
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: __expr__
+            model:
+              type: reduce
+              refId: B
+              expression: A
+              reducer: last
+              settings:
+                mode: replaceNN
+                replaceWithValue: 0
+          - refId: C
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              refId: C
+              expression: B
+              conditions:
+                - evaluator:
+                    type: lt
+                    params:
+                      - 1
+                  operator:
+                    type: and
+        noDataState: Alerting
+        execErrState: Alerting
+        for: 10m
+        labels:
+          severity: critical
+          component: news-feeder
+        annotations:
+          summary: "News Feeder is not writing data"
+          description: "No article data points written to InfluxDB in the last 10 minutes. The news-feeder collector may be down."
+
+  - orgId: 1
+    name: Infrastructure
+    folder: Bloomberg
+    interval: 1m
+    rules:
+      # 5. CPU High — CPU > 80% for 5 minutes
+      - uid: bloomberg-cpu-high
+        title: CPU Usage High
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: prometheus
+            model:
+              refId: A
+              expr: "100 - (avg(rate(node_cpu_seconds_total{mode=\"idle\"}[5m])) * 100)"
+              instant: false
+          - refId: B
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: __expr__
+            model:
+              type: reduce
+              refId: B
+              expression: A
+              reducer: mean
+              settings:
+                mode: dropNN
+          - refId: C
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              refId: C
+              expression: B
+              conditions:
+                - evaluator:
+                    type: gt
+                    params:
+                      - 80
+                  operator:
+                    type: and
+        noDataState: NoData
+        execErrState: Error
+        for: 5m
+        labels:
+          severity: warning
+          component: host
+        annotations:
+          summary: "CPU usage is above 80%"
+          description: "Host CPU utilization has been above 80% for 5 minutes. Current: {{ $values.B }}%"
+
+      # 6. RAM High — RAM > 85% for 5 minutes
+      - uid: bloomberg-ram-high
+        title: RAM Usage High
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: prometheus
+            model:
+              refId: A
+              expr: "(1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100"
+              instant: false
+          - refId: B
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: __expr__
+            model:
+              type: reduce
+              refId: B
+              expression: A
+              reducer: mean
+              settings:
+                mode: dropNN
+          - refId: C
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              refId: C
+              expression: B
+              conditions:
+                - evaluator:
+                    type: gt
+                    params:
+                      - 85
+                  operator:
+                    type: and
+        noDataState: NoData
+        execErrState: Error
+        for: 5m
+        labels:
+          severity: warning
+          component: host
+        annotations:
+          summary: "RAM usage is above 85%"
+          description: "Host memory utilization has been above 85% for 5 minutes. Current: {{ $values.B }}%"

@@ -1,0 +1,355 @@
+{
+  "uid": "bloomberg-deep-dive",
+  "title": "Bloomberg — Deep Dive",
+  "description": "Detailed single-asset analysis with multi-timeframe charts, volume and filtered news",
+  "tags": ["bloomberg", "deep-dive", "analysis"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "30s",
+  "time": { "from": "now-1h", "to": "now" },
+  "fiscalYearStartMonth": 0,
+  "liveNow": true,
+  "style": "dark",
+  "editable": true,
+  "graphTooltip": 1,
+  "templating": {
+    "list": [
+      {
+        "name": "asset",
+        "type": "custom",
+        "label": "Asset",
+        "current": { "text": "BTC", "value": "BTC" },
+        "options": [
+          { "text": "BTC", "value": "BTC", "selected": true },
+          { "text": "ETH", "value": "ETH", "selected": false },
+          { "text": "SOL", "value": "SOL", "selected": false },
+          { "text": "BNB", "value": "BNB", "selected": false },
+          { "text": "XRP", "value": "XRP", "selected": false },
+          { "text": "AAPL", "value": "AAPL", "selected": false },
+          { "text": "MSFT", "value": "MSFT", "selected": false },
+          { "text": "TSLA", "value": "TSLA", "selected": false },
+          { "text": "SP500", "value": "SP500", "selected": false },
+          { "text": "NASDAQ", "value": "NASDAQ", "selected": false },
+          { "text": "EURUSD", "value": "EURUSD", "selected": false },
+          { "text": "GBPUSD", "value": "GBPUSD", "selected": false },
+          { "text": "GOLD", "value": "GOLD", "selected": false },
+          { "text": "CRUDE_OIL", "value": "CRUDE_OIL", "selected": false }
+        ],
+        "query": "BTC,ETH,SOL,BNB,XRP,AAPL,MSFT,TSLA,SP500,NASDAQ,EURUSD,GBPUSD,GOLD,CRUDE_OIL"
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "${asset} — Price",
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 0 },
+      "transparent": true,
+      "datasource": { "type": "influxdb", "uid": "influxdb" },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "influxdb", "uid": "influxdb" },
+          "query": "from(bucket: \"markets\")\n  |> range(start: -5m)\n  |> filter(fn: (r) => r._measurement == \"price\")\n  |> filter(fn: (r) => r.symbol == \"${asset}\")\n  |> filter(fn: (r) => r._field == \"last\")\n  |> last()"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "fixed", "fixedColor": "#ff8c00" },
+          "unit": "currencyUSD",
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "#ff8c00", "value": null }] }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "graphMode": "none",
+        "colorMode": "value",
+        "justifyMode": "auto",
+        "textMode": "auto",
+        "wideLayout": true,
+        "showPercentChange": false,
+        "orientation": "horizontal"
+      }
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "24h Change",
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 0 },
+      "transparent": true,
+      "datasource": { "type": "influxdb", "uid": "influxdb" },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "influxdb", "uid": "influxdb" },
+          "query": "from(bucket: \"markets\")\n  |> range(start: -5m)\n  |> filter(fn: (r) => r._measurement == \"price\")\n  |> filter(fn: (r) => r.symbol == \"${asset}\")\n  |> filter(fn: (r) => r._field == \"change_pct_24h\")\n  |> last()"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "unit": "percent",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "#ff3b3b", "value": null },
+              { "color": "#00d4aa", "value": 0 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "graphMode": "area",
+        "colorMode": "value",
+        "justifyMode": "auto",
+        "textMode": "auto",
+        "wideLayout": true,
+        "showPercentChange": false,
+        "orientation": "horizontal"
+      }
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "24h Volume",
+      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 0 },
+      "transparent": true,
+      "datasource": { "type": "influxdb", "uid": "influxdb" },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "influxdb", "uid": "influxdb" },
+          "query": "from(bucket: \"markets\")\n  |> range(start: -5m)\n  |> filter(fn: (r) => r._measurement == \"price\")\n  |> filter(fn: (r) => r.symbol == \"${asset}\")\n  |> filter(fn: (r) => r._field == \"volume_24h\")\n  |> last()"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "fixed", "fixedColor": "#94a3b8" },
+          "unit": "currencyUSD",
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "#94a3b8", "value": null }] }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "graphMode": "none",
+        "colorMode": "value",
+        "justifyMode": "auto",
+        "textMode": "auto",
+        "wideLayout": true,
+        "showPercentChange": false,
+        "orientation": "horizontal"
+      }
+    },
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "Market Cap",
+      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 0 },
+      "transparent": true,
+      "datasource": { "type": "influxdb", "uid": "influxdb" },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "influxdb", "uid": "influxdb" },
+          "query": "from(bucket: \"markets\")\n  |> range(start: -5m)\n  |> filter(fn: (r) => r._measurement == \"price\")\n  |> filter(fn: (r) => r.symbol == \"${asset}\")\n  |> filter(fn: (r) => r._field == \"market_cap\")\n  |> last()"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "fixed", "fixedColor": "#64748b" },
+          "unit": "currencyUSD",
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "#64748b", "value": null }] }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "graphMode": "none",
+        "colorMode": "value",
+        "justifyMode": "auto",
+        "textMode": "auto",
+        "wideLayout": true,
+        "showPercentChange": false,
+        "orientation": "horizontal"
+      }
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "${asset} — 1 Hour",
+      "gridPos": { "h": 14, "w": 12, "x": 0, "y": 4 },
+      "transparent": true,
+      "datasource": { "type": "influxdb", "uid": "influxdb" },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "influxdb", "uid": "influxdb" },
+          "query": "from(bucket: \"markets\")\n  |> range(start: -1h)\n  |> filter(fn: (r) => r._measurement == \"price\")\n  |> filter(fn: (r) => r.symbol == \"${asset}\")\n  |> filter(fn: (r) => r._field == \"last\")\n  |> aggregateWindow(every: 30s, fn: last, createEmpty: false)"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "fixed", "fixedColor": "#ff8c00" },
+          "custom": {
+            "axisBorderShow": false,
+            "axisColorMode": "text",
+            "axisPlacement": "auto",
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "opacity",
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "pointSize": 1,
+            "showPoints": "never",
+            "spanNulls": true,
+            "stacking": { "group": "A", "mode": "none" },
+            "thresholdsStyle": { "mode": "off" }
+          },
+          "unit": "currencyUSD",
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": { "displayMode": "hidden", "placement": "bottom" },
+        "tooltip": { "mode": "single", "sort": "none" }
+      }
+    },
+    {
+      "id": 6,
+      "type": "timeseries",
+      "title": "${asset} — 15 Minutes",
+      "gridPos": { "h": 14, "w": 12, "x": 12, "y": 4 },
+      "transparent": true,
+      "datasource": { "type": "influxdb", "uid": "influxdb" },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "influxdb", "uid": "influxdb" },
+          "query": "from(bucket: \"markets\")\n  |> range(start: -15m)\n  |> filter(fn: (r) => r._measurement == \"price\")\n  |> filter(fn: (r) => r.symbol == \"${asset}\")\n  |> filter(fn: (r) => r._field == \"last\")\n  |> aggregateWindow(every: 10s, fn: last, createEmpty: false)"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "fixed", "fixedColor": "#00d4aa" },
+          "custom": {
+            "axisBorderShow": false,
+            "axisColorMode": "text",
+            "axisPlacement": "auto",
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "opacity",
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "pointSize": 1,
+            "showPoints": "never",
+            "spanNulls": true,
+            "stacking": { "group": "A", "mode": "none" },
+            "thresholdsStyle": { "mode": "off" }
+          },
+          "unit": "currencyUSD",
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": { "displayMode": "hidden", "placement": "bottom" },
+        "tooltip": { "mode": "single", "sort": "none" }
+      }
+    },
+    {
+      "id": 7,
+      "type": "barchart",
+      "title": "${asset} — Volume",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 18 },
+      "transparent": true,
+      "datasource": { "type": "influxdb", "uid": "influxdb" },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "influxdb", "uid": "influxdb" },
+          "query": "from(bucket: \"markets\")\n  |> range(start: -1h)\n  |> filter(fn: (r) => r._measurement == \"price\")\n  |> filter(fn: (r) => r.symbol == \"${asset}\")\n  |> filter(fn: (r) => r._field == \"volume_24h\")\n  |> aggregateWindow(every: 5m, fn: last, createEmpty: false)"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "fixed", "fixedColor": "#334155" },
+          "custom": {
+            "axisBorderShow": false,
+            "axisColorMode": "text",
+            "axisPlacement": "auto",
+            "fillOpacity": 60,
+            "gradientMode": "opacity",
+            "lineWidth": 0
+          },
+          "unit": "currencyUSD",
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] }
+        },
+        "overrides": []
+      },
+      "options": {
+        "barWidth": 0.8,
+        "groupWidth": 0.7,
+        "legend": { "displayMode": "hidden", "placement": "bottom" },
+        "tooltip": { "mode": "single", "sort": "none" },
+        "orientation": "auto",
+        "showValue": "never",
+        "stacking": "none",
+        "xTickLabelRotation": 0
+      }
+    },
+    {
+      "id": 8,
+      "type": "marcusolsson-dynamictext-panel",
+      "title": "${asset} — Related News",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 18 },
+      "transparent": true,
+      "datasource": { "type": "influxdb", "uid": "influxdb" },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "influxdb", "uid": "influxdb" },
+          "query": "from(bucket: \"news\")\n  |> range(start: -24h)\n  |> filter(fn: (r) => r._measurement == \"article\")\n  |> filter(fn: (r) => r._field == \"title\" or r._field == \"url\" or r._field == \"score\")\n  |> pivot(rowKey: [\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n  |> filter(fn: (r) => r.related_asset == \"${asset}\" or r.related_asset == \"UNKNOWN\")\n  |> sort(columns: [\"_time\"], desc: true)\n  |> limit(n: 15)"
+        }
+      ],
+      "options": {
+        "content": "<style>\n.dd-news { font-family: 'IBM Plex Mono', monospace; }\n.dd-item { padding: 6px 8px; border-bottom: 1px solid rgba(255,255,255,0.05); display: flex; gap: 8px; align-items: flex-start; }\n.dd-item:hover { background: rgba(255,255,255,0.03); }\n.dd-emoji { font-size: 13px; flex-shrink: 0; }\n.dd-body { flex: 1; }\n.dd-title a { color: #e2e8f0; text-decoration: none; font-size: 11px; line-height: 1.4; }\n.dd-title a:hover { color: #ff8c00; }\n.dd-meta { color: #64748b; font-size: 9px; margin-top: 2px; }\n</style>\n<div class=\"dd-news\">\n{{#each data}}\n<div class=\"dd-item\">\n  <span class=\"dd-emoji\">{{#if (gt score 0.05)}}🟢{{else if (lt score -0.05)}}🔴{{else}}⚪{{/if}}</span>\n  <div class=\"dd-body\">\n    <div class=\"dd-title\"><a href=\"{{url}}\" target=\"_blank\">{{title}}</a></div>\n    <div class=\"dd-meta\">{{source}} · {{_time}}</div>\n  </div>\n</div>\n{{/each}}\n</div>",
+        "contentMode": "html",
+        "defaultContent": "<div style=\"color:#64748b;font-family:monospace;padding:8px;\">No news for ${asset}</div>",
+        "editor": { "format": "auto", "language": "html" },
+        "externalStyles": [],
+        "helpers": "",
+        "renderMode": "everyRow",
+        "wrap": true
+      },
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      }
+    }
+  ],
+  "links": [
+    { "title": "Home", "url": "/d/bloomberg-home/bloomberg-home", "icon": "home-alt", "type": "link", "targetBlank": false },
+    { "title": "Portfolio", "url": "/d/bloomberg-portfolio/bloomberg-portfolio", "icon": "apps", "type": "link", "targetBlank": false },
+    { "title": "Infrastructure", "url": "/d/bloomberg-infra/bloomberg-infra", "icon": "monitor", "type": "link", "targetBlank": false }
+  ],
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": { "type": "grafana", "uid": "-- Grafana --" },
+        "enable": true,
+        "hide": true,
+        "iconColor": "#ff8c00",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  }
+}
