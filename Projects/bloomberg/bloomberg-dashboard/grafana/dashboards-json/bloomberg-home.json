@@ -71,7 +71,7 @@
       "id": 1,
       "type": "marcusolsson-dynamictext-panel",
       "title": "MARKET TICKER",
-      "gridPos": { "h": 3, "w": 24, "x": 0, "y": 0 },
+      "gridPos": { "h": 2, "w": 24, "x": 0, "y": 0 },
       "transparent": true,
       "datasource": { "type": "influxdb", "uid": "influxdb" },
       "targets": [
@@ -100,7 +100,7 @@
       "id": 2,
       "type": "timeseries",
       "title": "${asset} — Price",
-      "gridPos": { "h": 16, "w": 14, "x": 0, "y": 3 },
+      "gridPos": { "h": 12, "w": 14, "x": 0, "y": 2 },
       "transparent": true,
       "datasource": { "type": "influxdb", "uid": "influxdb" },
       "targets": [
@@ -172,7 +172,7 @@
       "id": 3,
       "type": "marcusolsson-dynamictext-panel",
       "title": "MARKET OVERVIEW",
-      "gridPos": { "h": 16, "w": 10, "x": 14, "y": 3 },
+      "gridPos": { "h": 12, "w": 10, "x": 14, "y": 2 },
       "transparent": true,
       "datasource": { "type": "influxdb", "uid": "influxdb" },
       "targets": [
@@ -201,7 +201,7 @@
       "id": 4,
       "type": "marcusolsson-dynamictext-panel",
       "title": "NEWS FEED",
-      "gridPos": { "h": 12, "w": 12, "x": 0, "y": 19 },
+      "gridPos": { "h": 9, "w": 12, "x": 0, "y": 14 },
       "transparent": true,
       "datasource": { "type": "influxdb", "uid": "influxdb" },
       "targets": [
@@ -230,7 +230,7 @@
       "id": 5,
       "type": "table",
       "title": "ACTIVE ALERTS",
-      "gridPos": { "h": 12, "w": 6, "x": 12, "y": 19 },
+      "gridPos": { "h": 9, "w": 6, "x": 12, "y": 14 },
       "transparent": true,
       "datasource": { "type": "datasource", "uid": "-- Grafana --" },
       "targets": [
@@ -271,7 +271,7 @@
       "id": 6,
       "type": "stat",
       "title": "CPU",
-      "gridPos": { "h": 6, "w": 3, "x": 18, "y": 19 },
+      "gridPos": { "h": 4, "w": 3, "x": 18, "y": 14 },
       "transparent": true,
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "targets": [
@@ -316,7 +316,7 @@
       "id": 7,
       "type": "stat",
       "title": "RAM",
-      "gridPos": { "h": 6, "w": 3, "x": 21, "y": 19 },
+      "gridPos": { "h": 4, "w": 3, "x": 21, "y": 14 },
       "transparent": true,
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "targets": [
@@ -359,7 +359,7 @@
       "id": 8,
       "type": "stat",
       "title": "Disk",
-      "gridPos": { "h": 6, "w": 3, "x": 18, "y": 25 },
+      "gridPos": { "h": 5, "w": 3, "x": 18, "y": 18 },
       "transparent": true,
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "targets": [
@@ -402,7 +402,7 @@
       "id": 9,
       "type": "stat",
       "title": "Containers",
-      "gridPos": { "h": 6, "w": 3, "x": 21, "y": 25 },
+      "gridPos": { "h": 5, "w": 3, "x": 21, "y": 18 },
       "transparent": true,
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "targets": [
@@ -443,7 +443,7 @@
       "id": 10,
       "type": "grafana-clock-panel",
       "title": "NEW YORK",
-      "gridPos": { "h": 3, "w": 5, "x": 0, "y": 31 },
+      "gridPos": { "h": 2, "w": 5, "x": 0, "y": 23 },
       "transparent": true,
       "options": {
         "mode": "time",
@@ -452,7 +452,7 @@
         "bgColor": "transparent",
         "fontMono": true,
         "dateSettings": { "showDate": true, "dateFormat": "DD/MM", "locale": "en", "fontSize": "14px" },
-        "timeSettings": { "fontSize": "28px", "fontWeight": "bold" },
+        "timeSettings": { "fontSize": "22px", "fontWeight": "bold" },
         "timezoneSettings": { "showTimezone": true, "zoneFormat": "name", "fontSize": "12px" }
       },
       "fieldConfig": { "defaults": {}, "overrides": [] }
@@ -461,7 +461,7 @@
       "id": 11,
       "type": "grafana-clock-panel",
       "title": "LONDON",
-      "gridPos": { "h": 3, "w": 5, "x": 5, "y": 31 },
+      "gridPos": { "h": 2, "w": 5, "x": 5, "y": 23 },
       "transparent": true,
       "options": {
         "mode": "time",
@@ -470,7 +470,7 @@
         "bgColor": "transparent",
         "fontMono": true,
         "dateSettings": { "showDate": true, "dateFormat": "DD/MM", "locale": "en", "fontSize": "14px" },
-        "timeSettings": { "fontSize": "28px", "fontWeight": "bold" },
+        "timeSettings": { "fontSize": "22px", "fontWeight": "bold" },
         "timezoneSettings": { "showTimezone": true, "zoneFormat": "name", "fontSize": "12px" }
       },
       "fieldConfig": { "defaults": {}, "overrides": [] }
@@ -479,7 +479,7 @@
       "id": 12,
       "type": "grafana-clock-panel",
       "title": "PARIS",
-      "gridPos": { "h": 3, "w": 5, "x": 10, "y": 31 },
+      "gridPos": { "h": 2, "w": 5, "x": 10, "y": 23 },
       "transparent": true,
       "options": {
         "mode": "time",
@@ -488,7 +488,7 @@
         "bgColor": "transparent",
         "fontMono": true,
         "dateSettings": { "showDate": true, "dateFormat": "DD/MM", "locale": "en", "fontSize": "14px" },
-        "timeSettings": { "fontSize": "28px", "fontWeight": "bold" },
+        "timeSettings": { "fontSize": "22px", "fontWeight": "bold" },
         "timezoneSettings": { "showTimezone": true, "zoneFormat": "name", "fontSize": "12px" }
       },
       "fieldConfig": { "defaults": {}, "overrides": [] }
@@ -497,7 +497,7 @@
       "id": 13,
       "type": "grafana-clock-panel",
       "title": "TOKYO",
-      "gridPos": { "h": 3, "w": 5, "x": 15, "y": 31 },
+      "gridPos": { "h": 2, "w": 5, "x": 15, "y": 23 },
       "transparent": true,
       "options": {
         "mode": "time",
@@ -506,7 +506,7 @@
         "bgColor": "transparent",
         "fontMono": true,
         "dateSettings": { "showDate": true, "dateFormat": "DD/MM", "locale": "en", "fontSize": "14px" },
-        "timeSettings": { "fontSize": "28px", "fontWeight": "bold" },
+        "timeSettings": { "fontSize": "22px", "fontWeight": "bold" },
         "timezoneSettings": { "showTimezone": true, "zoneFormat": "name", "fontSize": "12px" }
       },
       "fieldConfig": { "defaults": {}, "overrides": [] }
@@ -515,7 +515,7 @@
       "id": 14,
       "type": "grafana-clock-panel",
       "title": "SYDNEY",
-      "gridPos": { "h": 3, "w": 4, "x": 20, "y": 31 },
+      "gridPos": { "h": 2, "w": 4, "x": 20, "y": 23 },
       "transparent": true,
       "options": {
         "mode": "time",
@@ -524,7 +524,7 @@
         "bgColor": "transparent",
         "fontMono": true,
         "dateSettings": { "showDate": true, "dateFormat": "DD/MM", "locale": "en", "fontSize": "14px" },
-        "timeSettings": { "fontSize": "28px", "fontWeight": "bold" },
+        "timeSettings": { "fontSize": "22px", "fontWeight": "bold" },
         "timezoneSettings": { "showTimezone": true, "zoneFormat": "name", "fontSize": "12px" }
       },
       "fieldConfig": { "defaults": {}, "overrides": [] }
