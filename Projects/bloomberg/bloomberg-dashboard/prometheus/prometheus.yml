@@ -42,9 +42,16 @@ scrape_configs:
     metrics_path: '/metrics'
     scrape_interval: 30s
 
-  # --- Watchlist API health ---
-  - job_name: 'watchlist-api'
+  # --- News Feeder health ---
+  - job_name: 'news-feeder'
     static_configs:
-      - targets: ['bloomberg-watchlist-api:8000']
+      - targets: ['bloomberg-news-feeder:8080']
     metrics_path: '/metrics'
     scrape_interval: 30s
+
+  # --- Watchlist API health (Phase 3) ---
+  # - job_name: 'watchlist-api'
+  #   static_configs:
+  #     - targets: ['bloomberg-watchlist-api:8000']
+  #   metrics_path: '/metrics'
+  #   scrape_interval: 30s

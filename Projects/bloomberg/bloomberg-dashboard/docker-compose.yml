@@ -2,7 +2,7 @@
 # Bloomberg Dashboard — Docker Compose
 # ============================================================
 # Phase 0: Infrastructure core (7 services)
-# Collectors (Phase 2) commentés avec profiles: [collectors]
+# Phase 2: Collectors (market-feeder, news-feeder)
 #
 # Usage:
 #   docker compose up -d
@@ -206,71 +206,78 @@ services:
         condition: service_healthy
 
   # --------------------------------------------------------
-  # COLLECTORS (Phase 2 — décommenté quand les Dockerfiles existent)
+  # COLLECTORS (Phase 2)
   # --------------------------------------------------------
 
-  # bloomberg-market-feeder:
-  #   build:
-  #     context: ./collectors/market-feeder
-  #     dockerfile: Dockerfile
-  #   container_name: bloomberg-market-feeder
-  #   restart: unless-stopped
-  #   init: true
-  #   profiles: [collectors]
-  #   environment:
-  #     - INFLUXDB_URL=http://bloomberg-influxdb:8086
-  #     - INFLUXDB_TOKEN=${INFLUXDB_TOKEN}
-  #     - INFLUXDB_ORG=bloomberg
-  #     - INFLUXDB_BUCKET=markets
-  #     - POSTGRES_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@bloomberg-postgres:5432/bloomberg_config
-  #     - BINANCE_API_KEY=${BINANCE_API_KEY}
-  #     - BINANCE_SECRET=${BINANCE_SECRET}
-  #     - YAHOO_FINANCE_ENABLED=true
-  #     - COINGECKO_API_KEY=${COINGECKO_API_KEY}
-  #     - COLLECTION_INTERVAL_WS=1
-  #     - COLLECTION_INTERVAL_REST=15
-  #     - LOG_LEVEL=INFO
-  #   networks:
-  #     - bloomberg-net
-  #   deploy:
-  #     resources:
-  #       limits:
-  #         cpus: "0.5"
-  #         memory: 512M
-  #   depends_on:
-  #     bloomberg-influxdb:
-  #       condition: service_healthy
-  #     bloomberg-postgres:
-  #       condition: service_healthy
+  bloomberg-market-feeder:
+    build:
+      context: ./collectors/market-feeder
+      dockerfile: Dockerfile
+    container_name: bloomberg-market-feeder
+    restart: unless-stopped
+    init: true
+    environment:
+      - INFLUXDB_URL=http://bloomberg-influxdb:8086
+      - INFLUXDB_TOKEN=${INFLUXDB_TOKEN}
+      - INFLUXDB_ORG=bloomberg
+      - INFLUXDB_BUCKET=markets
+      - BINANCE_API_KEY=${BINANCE_API_KEY}
+      - BINANCE_SECRET=${BINANCE_SECRET}
+      - YAHOO_FINANCE_ENABLED=true
+      - COINGECKO_API_KEY=${COINGECKO_API_KEY}
+      - COINGECKO_INTERVAL=${COINGECKO_INTERVAL}
+      - COLLECTION_INTERVAL_REST=${COLLECTION_INTERVAL_REST}
+      - LOG_LEVEL=${LOG_LEVEL}
+    networks:
+      - bloomberg-net
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 512M
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    depends_on:
+      bloomberg-influxdb:
+        condition: service_healthy
 
-  # bloomberg-news-feeder:
-  #   build:
-  #     context: ./collectors/news-feeder
-  #     dockerfile: Dockerfile
-  #   container_name: bloomberg-news-feeder
-  #   restart: unless-stopped
-  #   init: true
-  #   profiles: [collectors]
-  #   environment:
-  #     - INFLUXDB_URL=http://bloomberg-influxdb:8086
-  #     - INFLUXDB_TOKEN=${INFLUXDB_TOKEN}
-  #     - INFLUXDB_ORG=bloomberg
-  #     - INFLUXDB_BUCKET=news
-  #     - NEWSAPI_KEY=${NEWSAPI_KEY}
-  #     - CRYPTOPANIC_TOKEN=${CRYPTOPANIC_TOKEN}
-  #     - POLLING_INTERVAL=120
-  #     - SENTIMENT_ENABLED=true
-  #     - LOG_LEVEL=INFO
-  #   networks:
-  #     - bloomberg-net
-  #   deploy:
-  #     resources:
-  #       limits:
-  #         cpus: "0.25"
-  #         memory: 256M
-  #   depends_on:
-  #     bloomberg-influxdb:
-  #       condition: service_healthy
+  bloomberg-news-feeder:
+    build:
+      context: ./collectors/news-feeder
+      dockerfile: Dockerfile
+    container_name: bloomberg-news-feeder
+    restart: unless-stopped
+    init: true
+    environment:
+      - INFLUXDB_URL=http://bloomberg-influxdb:8086
+      - INFLUXDB_TOKEN=${INFLUXDB_TOKEN}
+      - INFLUXDB_ORG=bloomberg
+      - INFLUXDB_BUCKET=news
+      - NEWSAPI_KEY=${NEWSAPI_KEY}
+      - CRYPTOPANIC_TOKEN=${CRYPTOPANIC_TOKEN}
+      - POLLING_INTERVAL=${NEWS_POLLING_INTERVAL}
+      - SENTIMENT_ENABLED=true
+      - LOG_LEVEL=${LOG_LEVEL}
+    networks:
+      - bloomberg-net
+    deploy:
+      resources:
+        limits:
+          cpus: "0.25"
+          memory: 256M
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    depends_on:
+      bloomberg-influxdb:
+        condition: service_healthy
 
   # bloomberg-watchlist-api:
   #   build:
