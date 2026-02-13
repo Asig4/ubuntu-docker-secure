@@ -1,0 +1,18 @@
+# ============================================================
+# Grafana Dashboard Provisioning — Bloomberg Dashboard
+# ============================================================
+
+apiVersion: 1
+
+providers:
+  - name: 'Bloomberg Dashboards'
+    orgId: 1
+    folder: 'Bloomberg'
+    type: file
+    disableDeletion: false
+    editable: true
+    updateIntervalSeconds: 30
+    allowUiUpdates: true
+    options:
+      path: /etc/grafana/dashboards-json
+      foldersFromFilesStructure: false

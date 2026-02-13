@@ -1,0 +1,45 @@
+# ============================================================
+# Bloomberg Dashboard — .gitignore
+# ============================================================
+
+# Environnement (SECRETS - ne JAMAIS commiter)
+.env
+*.env.local
+
+# SSL certificates
+nginx/ssl/*.pem
+nginx/ssl/*.key
+
+# Données Docker volumes (gérées par Docker)
+data/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+venv/
+.venv/
+*.egg
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Backups locaux
+backups/
+
+# Temp
+tmp/
+temp/

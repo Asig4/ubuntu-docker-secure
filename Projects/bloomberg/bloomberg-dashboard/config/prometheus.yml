@@ -1,0 +1,50 @@
+# ============================================================
+# Prometheus Configuration — Bloomberg Dashboard
+# ============================================================
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  scrape_timeout: 10s
+
+# Alertmanager (si utilisé en standalone)
+# alerting:
+#   alertmanagers:
+#     - static_configs:
+#         - targets: ['alertmanager:9093']
+
+scrape_configs:
+  # --- Prometheus self-monitoring ---
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # --- Node Exporter (métriques VPS) ---
+  - job_name: 'node-exporter'
+    static_configs:
+      - targets: ['bloomberg-node-exporter:9100']
+
+  # --- cAdvisor (métriques containers Docker) ---
+  - job_name: 'cadvisor'
+    static_configs:
+      - targets: ['bloomberg-cadvisor:8081']
+
+  # --- Grafana self-monitoring ---
+  - job_name: 'grafana'
+    static_configs:
+      - targets: ['bloomberg-grafana:3000']
+    metrics_path: '/metrics'
+
+  # --- Market Feeder health ---
+  - job_name: 'market-feeder'
+    static_configs:
+      - targets: ['bloomberg-market-feeder:8080']
+    metrics_path: '/metrics'
+    scrape_interval: 30s
+
+  # --- Watchlist API health ---
+  - job_name: 'watchlist-api'
+    static_configs:
+      - targets: ['bloomberg-watchlist-api:8000']
+    metrics_path: '/metrics'
+    scrape_interval: 30s

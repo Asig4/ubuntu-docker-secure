@@ -1,0 +1,49 @@
+# ============================================================
+# Grafana Datasources Provisioning — Bloomberg Dashboard
+# ============================================================
+# Auto-configuré au démarrage de Grafana
+
+apiVersion: 1
+
+datasources:
+  # --- InfluxDB (données marchés, news, custom) ---
+  - name: InfluxDB
+    type: influxdb
+    access: proxy
+    url: http://bloomberg-influxdb:8086
+    isDefault: true
+    jsonData:
+      version: Flux
+      organization: bloomberg
+      defaultBucket: markets
+      tlsSkipVerify: true
+    secureJsonData:
+      token: ${INFLUXDB_TOKEN}
+    editable: true
+
+  # --- PostgreSQL (config, watchlists, users) ---
+  - name: PostgreSQL
+    type: postgres
+    access: proxy
+    url: bloomberg-postgres:5432
+    database: bloomberg_config
+    user: ${POSTGRES_USER}
+    jsonData:
+      sslmode: disable
+      maxOpenConns: 10
+      maxIdleConns: 5
+      connMaxLifetime: 14400
+      postgresVersion: 1600
+    secureJsonData:
+      password: ${POSTGRES_PASSWORD}
+    editable: true
+
+  # --- Prometheus (métriques infrastructure) ---
+  - name: Prometheus
+    type: prometheus
+    access: proxy
+    url: http://bloomberg-prometheus:9090
+    jsonData:
+      httpMethod: POST
+      timeInterval: 15s
+    editable: true
