@@ -143,12 +143,16 @@ services:
     environment:
       - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER}
       - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD}
-      - GF_INSTALL_PLUGINS=marcusolsson-dynamictext-panel,natel-plotly-panel,grafana-clock-panel,grafana-polystat-panel,yesoreyeram-infinity-datasource,marcusolsson-json-datasource
+      - GF_INSTALL_PLUGINS=marcusolsson-dynamictext-panel,grafana-clock-panel,grafana-polystat-panel,yesoreyeram-infinity-datasource,marcusolsson-json-datasource
       - GF_SERVER_ROOT_URL=http://${DOMAIN}
       - GF_SERVER_SERVE_FROM_SUB_PATH=false
       - GF_UNIFIED_ALERTING_ENABLED=true
+      - INFLUXDB_TOKEN=${INFLUXDB_TOKEN}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
     volumes:
       - grafana-data:/var/lib/grafana
+      - ./grafana/grafana.ini:/etc/grafana/grafana.ini:ro
       - ./grafana/provisioning:/etc/grafana/provisioning:ro
       - ./grafana/dashboards-json:/etc/grafana/dashboards-json:ro
     networks:

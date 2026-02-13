@@ -27,7 +27,7 @@ scrape_configs:
   # --- cAdvisor (métriques containers Docker) ---
   - job_name: 'cadvisor'
     static_configs:
-      - targets: ['bloomberg-cadvisor:8081']
+      - targets: ['bloomberg-cadvisor:8080']
 
   # --- Grafana self-monitoring ---
   - job_name: 'grafana'
