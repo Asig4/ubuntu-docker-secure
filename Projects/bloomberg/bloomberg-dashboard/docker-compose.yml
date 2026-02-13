@@ -1,0 +1,317 @@
+# ============================================================
+# Bloomberg Dashboard — Docker Compose
+# ============================================================
+# Phase 0: Infrastructure core (7 services)
+# Collectors (Phase 2) commentés avec profiles: [collectors]
+#
+# Usage:
+#   docker compose up -d
+#   docker compose ps
+#   curl http://localhost/api/health
+# ============================================================
+
+services:
+  # --------------------------------------------------------
+  # LAYER 1: Databases & Monitoring backends
+  # --------------------------------------------------------
+
+  bloomberg-influxdb:
+    image: influxdb:2.7
+    container_name: bloomberg-influxdb
+    restart: unless-stopped
+    init: true
+    environment:
+      - DOCKER_INFLUXDB_INIT_MODE=setup
+      - DOCKER_INFLUXDB_INIT_USERNAME=${INFLUXDB_USERNAME}
+      - DOCKER_INFLUXDB_INIT_PASSWORD=${INFLUXDB_PASSWORD}
+      - DOCKER_INFLUXDB_INIT_ORG=bloomberg
+      - DOCKER_INFLUXDB_INIT_BUCKET=markets
+      - DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=${INFLUXDB_TOKEN}
+      - DOCKER_INFLUXDB_INIT_RETENTION=168h
+    volumes:
+      - influxdb-data:/var/lib/influxdb2
+      - influxdb-config:/etc/influxdb2
+    networks:
+      - bloomberg-net
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 3G
+    healthcheck:
+      test: ["CMD", "influx", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+  bloomberg-postgres:
+    image: postgres:16-alpine
+    container_name: bloomberg-postgres
+    restart: unless-stopped
+    init: true
+    environment:
+      - POSTGRES_DB=bloomberg_config
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    networks:
+      - bloomberg-net
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 512M
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d bloomberg_config"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 20s
+
+  bloomberg-prometheus:
+    image: prom/prometheus:v2.50.0
+    container_name: bloomberg-prometheus
+    restart: unless-stopped
+    init: true
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=15d'
+      - '--web.enable-lifecycle'
+    ports:
+      - "9090:9090"
+    volumes:
+      - prometheus-data:/prometheus
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    networks:
+      - bloomberg-net
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1G
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:9090/-/healthy"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # --------------------------------------------------------
+  # LAYER 2: Monitoring agents
+  # --------------------------------------------------------
+
+  bloomberg-node-exporter:
+    image: prom/node-exporter:v1.7.0
+    container_name: bloomberg-node-exporter
+    restart: unless-stopped
+    networks:
+      - bloomberg-net
+    deploy:
+      resources:
+        limits:
+          cpus: "0.1"
+          memory: 64M
+
+  bloomberg-cadvisor:
+    image: gcr.io/cadvisor/cadvisor:v0.49.1
+    container_name: bloomberg-cadvisor
+    restart: unless-stopped
+    ports:
+      - "8081:8080"
+    volumes:
+      - /var/run:/var/run:ro
+    networks:
+      - bloomberg-net
+    deploy:
+      resources:
+        limits:
+          cpus: "0.25"
+          memory: 256M
+
+  # --------------------------------------------------------
+  # LAYER 3: Dashboard
+  # --------------------------------------------------------
+
+  bloomberg-grafana:
+    image: grafana/grafana:11.4.0
+    container_name: bloomberg-grafana
+    restart: unless-stopped
+    init: true
+    environment:
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD}
+      - GF_INSTALL_PLUGINS=marcusolsson-dynamictext-panel,natel-plotly-panel,grafana-clock-panel,grafana-polystat-panel,yesoreyeram-infinity-datasource,marcusolsson-json-datasource
+      - GF_SERVER_ROOT_URL=http://${DOMAIN}
+      - GF_SERVER_SERVE_FROM_SUB_PATH=false
+      - GF_UNIFIED_ALERTING_ENABLED=true
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards-json:/etc/grafana/dashboards-json:ro
+    networks:
+      - bloomberg-net
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1G
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    depends_on:
+      bloomberg-influxdb:
+        condition: service_healthy
+      bloomberg-postgres:
+        condition: service_healthy
+      bloomberg-prometheus:
+        condition: service_healthy
+
+  # --------------------------------------------------------
+  # LAYER 4: Reverse Proxy
+  # --------------------------------------------------------
+
+  bloomberg-nginx:
+    image: nginx:1.25-alpine
+    container_name: bloomberg-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/nginx-dev.conf:/etc/nginx/nginx.conf:ro
+    networks:
+      - bloomberg-net
+    deploy:
+      resources:
+        limits:
+          cpus: "0.25"
+          memory: 128M
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    depends_on:
+      bloomberg-grafana:
+        condition: service_healthy
+
+  # --------------------------------------------------------
+  # COLLECTORS (Phase 2 — décommenté quand les Dockerfiles existent)
+  # --------------------------------------------------------
+
+  # bloomberg-market-feeder:
+  #   build:
+  #     context: ./collectors/market-feeder
+  #     dockerfile: Dockerfile
+  #   container_name: bloomberg-market-feeder
+  #   restart: unless-stopped
+  #   init: true
+  #   profiles: [collectors]
+  #   environment:
+  #     - INFLUXDB_URL=http://bloomberg-influxdb:8086
+  #     - INFLUXDB_TOKEN=${INFLUXDB_TOKEN}
+  #     - INFLUXDB_ORG=bloomberg
+  #     - INFLUXDB_BUCKET=markets
+  #     - POSTGRES_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@bloomberg-postgres:5432/bloomberg_config
+  #     - BINANCE_API_KEY=${BINANCE_API_KEY}
+  #     - BINANCE_SECRET=${BINANCE_SECRET}
+  #     - YAHOO_FINANCE_ENABLED=true
+  #     - COINGECKO_API_KEY=${COINGECKO_API_KEY}
+  #     - COLLECTION_INTERVAL_WS=1
+  #     - COLLECTION_INTERVAL_REST=15
+  #     - LOG_LEVEL=INFO
+  #   networks:
+  #     - bloomberg-net
+  #   deploy:
+  #     resources:
+  #       limits:
+  #         cpus: "0.5"
+  #         memory: 512M
+  #   depends_on:
+  #     bloomberg-influxdb:
+  #       condition: service_healthy
+  #     bloomberg-postgres:
+  #       condition: service_healthy
+
+  # bloomberg-news-feeder:
+  #   build:
+  #     context: ./collectors/news-feeder
+  #     dockerfile: Dockerfile
+  #   container_name: bloomberg-news-feeder
+  #   restart: unless-stopped
+  #   init: true
+  #   profiles: [collectors]
+  #   environment:
+  #     - INFLUXDB_URL=http://bloomberg-influxdb:8086
+  #     - INFLUXDB_TOKEN=${INFLUXDB_TOKEN}
+  #     - INFLUXDB_ORG=bloomberg
+  #     - INFLUXDB_BUCKET=news
+  #     - NEWSAPI_KEY=${NEWSAPI_KEY}
+  #     - CRYPTOPANIC_TOKEN=${CRYPTOPANIC_TOKEN}
+  #     - POLLING_INTERVAL=120
+  #     - SENTIMENT_ENABLED=true
+  #     - LOG_LEVEL=INFO
+  #   networks:
+  #     - bloomberg-net
+  #   deploy:
+  #     resources:
+  #       limits:
+  #         cpus: "0.25"
+  #         memory: 256M
+  #   depends_on:
+  #     bloomberg-influxdb:
+  #       condition: service_healthy
+
+  # bloomberg-watchlist-api:
+  #   build:
+  #     context: ./collectors/watchlist-manager
+  #     dockerfile: Dockerfile
+  #   container_name: bloomberg-watchlist-api
+  #   restart: unless-stopped
+  #   init: true
+  #   profiles: [collectors]
+  #   environment:
+  #     - POSTGRES_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@bloomberg-postgres:5432/bloomberg_config
+  #     - JWT_SECRET=${JWT_SECRET}
+  #     - LOG_LEVEL=INFO
+  #   networks:
+  #     - bloomberg-net
+  #   deploy:
+  #     resources:
+  #       limits:
+  #         cpus: "0.25"
+  #         memory: 256M
+  #   depends_on:
+  #     bloomberg-postgres:
+  #       condition: service_healthy
+
+# ============================================================
+# Volumes
+# ============================================================
+volumes:
+  grafana-data:
+    name: bloomberg-grafana-data
+  influxdb-data:
+    name: bloomberg-influxdb-data
+  influxdb-config:
+    name: bloomberg-influxdb-config
+  postgres-data:
+    name: bloomberg-postgres-data
+  prometheus-data:
+    name: bloomberg-prometheus-data
+  certbot-data:
+    name: bloomberg-certbot-data
+
+# ============================================================
+# Network
+# ============================================================
+networks:
+  bloomberg-net:
+    name: bloomberg-net
+    driver: bridge
