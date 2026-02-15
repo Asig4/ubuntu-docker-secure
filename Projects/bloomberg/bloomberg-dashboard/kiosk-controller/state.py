@@ -26,6 +26,7 @@ class KioskState(BaseModel):
 
     @property
     def grafana_url(self) -> str:
+        """Relative URL for browser iframe (served via nginx on same host)."""
         dash = self.dashboard
         params = {"orgId": "1", "kiosk": "tv", "refresh": "10s"}
 
@@ -34,7 +35,7 @@ class KioskState(BaseModel):
             params["var-timeframe"] = self.timeframe
             params["var-exchange"] = self.exchange
 
-        return f"{settings.grafana_url}/d/{dash}?{urlencode(params)}"
+        return f"/d/{dash}?{urlencode(params)}"
 
 
 class StateManager:
