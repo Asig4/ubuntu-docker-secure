@@ -3,6 +3,7 @@
 # ============================================================
 # Phase 0: Infrastructure core (7 services)
 # Phase 2: Collectors (market-feeder, news-feeder)
+# Phase 4: Kiosk Controller (remote display control)
 #
 # Usage:
 #   docker compose up -d
@@ -204,6 +205,8 @@ services:
     depends_on:
       bloomberg-grafana:
         condition: service_healthy
+      bloomberg-kiosk-controller:
+        condition: service_healthy
 
   # --------------------------------------------------------
   # COLLECTORS (Phase 2)
@@ -277,6 +280,37 @@ services:
       start_period: 30s
     depends_on:
       bloomberg-influxdb:
+        condition: service_healthy
+
+  # --------------------------------------------------------
+  # KIOSK CONTROLLER (Phase 4)
+  # --------------------------------------------------------
+
+  bloomberg-kiosk-controller:
+    build:
+      context: ./kiosk-controller
+      dockerfile: Dockerfile
+    container_name: bloomberg-kiosk-controller
+    restart: unless-stopped
+    init: true
+    environment:
+      - KIOSK_LOG_LEVEL=${LOG_LEVEL}
+      - KIOSK_GRAFANA_URL=http://bloomberg-grafana:3000
+    networks:
+      - bloomberg-net
+    deploy:
+      resources:
+        limits:
+          cpus: "0.25"
+          memory: 128M
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/kiosk/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    depends_on:
+      bloomberg-grafana:
         condition: service_healthy
 
   # bloomberg-watchlist-api:

@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bloomberg Kiosk — Display</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { width: 100vw; height: 100vh; overflow: hidden; background: #0a0a0a; }
+#grafana-frame {
+    width: 100vw;
+    height: 100vh;
+    border: none;
+}
+#status {
+    position: fixed;
+    bottom: 12px;
+    right: 12px;
+    padding: 6px 14px;
+    border-radius: 6px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    color: #a0a0a0;
+    background: rgba(10,10,10,0.85);
+    border: 1px solid #1a1a2e;
+    transition: opacity 0.5s;
+    opacity: 0;
+    z-index: 1000;
+    pointer-events: none;
+}
+#status.visible { opacity: 1; }
+#status.connected { border-color: #00d4aa; }
+#status.disconnected { border-color: #ff3b3b; color: #ff3b3b; }
+</style>
+</head>
+<body>
+
+<iframe id="grafana-frame" src="{{ grafana_url }}"></iframe>
+<div id="status">Connecting...</div>
+
+<script>
+(function() {
+    const frame = document.getElementById('grafana-frame');
+    const status = document.getElementById('status');
+    let ws = null;
+    let reconnectDelay = 2000;
+    const MAX_DELAY = 30000;
+    let hideTimer = null;
+    let pingInterval = null;
+
+    function showStatus(text, cls) {
+        status.textContent = text;
+        status.className = 'visible ' + (cls || '');
+        clearTimeout(hideTimer);
+        hideTimer = setTimeout(() => { status.className = cls || ''; }, 3000);
+    }
+
+    function connect() {
+        const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+        ws = new WebSocket(proto + '//' + location.host + '/kiosk/ws');
+
+        ws.onopen = function() {
+            reconnectDelay = 2000;
+            showStatus('Connected', 'connected');
+            pingInterval = setInterval(() => {
+                if (ws && ws.readyState === WebSocket.OPEN) ws.send('ping');
+            }, 30000);
+        };
+
+        ws.onmessage = function(e) {
+            try {
+                const msg = JSON.parse(e.data);
+                if (msg.type === 'state_update' || msg.type === 'cycle_update') {
+                    const newUrl = msg.grafana_url;
+                    if (frame.src !== newUrl) {
+                        frame.src = newUrl;
+                        const asset = msg.state && msg.state.asset ? msg.state.asset : '';
+                        showStatus(asset, 'connected');
+                    }
+                }
+            } catch(err) {}
+        };
+
+        ws.onclose = function() {
+            clearInterval(pingInterval);
+            showStatus('Disconnected — reconnecting...', 'disconnected');
+            setTimeout(() => {
+                reconnectDelay = Math.min(reconnectDelay * 1.5, MAX_DELAY);
+                connect();
+            }, reconnectDelay);
+        };
+
+        ws.onerror = function() { ws.close(); };
+    }
+
+    connect();
+})();
+</script>
+</body>
+</html>

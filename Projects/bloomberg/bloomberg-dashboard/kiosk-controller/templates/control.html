@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Bloomberg Kiosk — Control</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { font-size: 14px; }
+body {
+    font-family: 'IBM Plex Mono', monospace;
+    background: #0a0a0a;
+    color: #e0e0e0;
+    min-height: 100vh;
+    -webkit-tap-highlight-color: transparent;
+}
+
+/* Status Bar */
+.status-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 16px;
+    background: #111;
+    border-bottom: 1px solid #1a1a2e;
+}
+.status-asset {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #ff8c00;
+}
+.status-displays {
+    font-size: 0.8rem;
+    color: #666;
+}
+.status-displays.connected { color: #00d4aa; }
+
+/* Section */
+.section {
+    padding: 12px 16px;
+    border-bottom: 1px solid #1a1a2e;
+}
+.section-label {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: #666;
+    margin-bottom: 8px;
+}
+
+/* Dashboard Tabs */
+.tab-bar {
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+.tab-btn {
+    flex: 1;
+    min-width: 0;
+    padding: 10px 8px;
+    border: 1px solid #1a1a2e;
+    border-radius: 6px;
+    background: #111;
+    color: #a0a0a0;
+    font-family: inherit;
+    font-size: 0.75rem;
+    font-weight: 500;
+    cursor: pointer;
+    text-align: center;
+    white-space: nowrap;
+    transition: all 0.15s;
+}
+.tab-btn.active {
+    background: #ff8c00;
+    color: #0a0a0a;
+    border-color: #ff8c00;
+    font-weight: 600;
+}
+
+/* Assets Grid */
+.assets-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+}
+.asset-btn {
+    padding: 12px 4px;
+    min-height: 44px;
+    border: 1px solid #1a1a2e;
+    border-radius: 6px;
+    background: #111;
+    color: #e0e0e0;
+    font-family: inherit;
+    font-size: 0.8rem;
+    font-weight: 500;
+    cursor: pointer;
+    text-align: center;
+    transition: all 0.15s;
+}
+.asset-btn:active { transform: scale(0.95); }
+.asset-btn.active {
+    background: #ff8c00;
+    color: #0a0a0a;
+    border-color: #ff8c00;
+    font-weight: 600;
+}
+
+/* Timeframe Bar */
+.tf-bar {
+    display: flex;
+    gap: 8px;
+}
+.tf-btn {
+    flex: 1;
+    padding: 10px 4px;
+    min-height: 44px;
+    border: 1px solid #1a1a2e;
+    border-radius: 6px;
+    background: #111;
+    color: #a0a0a0;
+    font-family: inherit;
+    font-size: 0.85rem;
+    font-weight: 500;
+    cursor: pointer;
+    text-align: center;
+    transition: all 0.15s;
+}
+.tf-btn:active { transform: scale(0.95); }
+.tf-btn.active {
+    background: #1a1a2e;
+    color: #ff8c00;
+    border-color: #ff8c00;
+}
+
+/* Cycle Section */
+.cycle-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+.cycle-toggle {
+    position: relative;
+    width: 48px;
+    height: 26px;
+    background: #333;
+    border-radius: 13px;
+    cursor: pointer;
+    transition: background 0.2s;
+    flex-shrink: 0;
+}
+.cycle-toggle.on { background: #ff8c00; }
+.cycle-toggle::after {
+    content: '';
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 20px;
+    height: 20px;
+    background: #fff;
+    border-radius: 50%;
+    transition: transform 0.2s;
+}
+.cycle-toggle.on::after { transform: translateX(22px); }
+
+.cycle-select, .cycle-input {
+    background: #111;
+    border: 1px solid #1a1a2e;
+    border-radius: 6px;
+    color: #e0e0e0;
+    font-family: inherit;
+    font-size: 0.8rem;
+    padding: 8px 10px;
+    min-height: 36px;
+}
+.cycle-select { min-width: 110px; }
+.cycle-input {
+    width: 70px;
+    text-align: center;
+}
+.cycle-label {
+    font-size: 0.75rem;
+    color: #666;
+}
+
+/* Toast */
+.toast {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%) translateY(80px);
+    padding: 10px 20px;
+    background: #1a1a2e;
+    color: #00d4aa;
+    border: 1px solid #00d4aa;
+    border-radius: 8px;
+    font-family: inherit;
+    font-size: 0.8rem;
+    opacity: 0;
+    transition: all 0.3s;
+    z-index: 100;
+    pointer-events: none;
+}
+.toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+}
+</style>
+</head>
+<body>
+
+<!-- Status Bar -->
+<div class="status-bar">
+    <span class="status-asset" id="current-asset">{{ state.asset }}</span>
+    <span class="status-displays" id="displays-count">-- displays</span>
+</div>
+
+<!-- Dashboard Tabs -->
+<div class="section">
+    <div class="section-label">Dashboard</div>
+    <div class="tab-bar" id="dashboard-tabs">
+        {% for uid, info in dashboards.items() %}
+        <button class="tab-btn{% if state.dashboard == uid %} active{% endif %}"
+                data-dashboard="{{ uid }}">{{ info.label }}</button>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- Assets Grid -->
+<div class="section">
+    <div class="section-label">Asset</div>
+    <div class="assets-grid" id="assets-grid">
+        {% for asset in assets %}
+        <button class="asset-btn{% if state.asset == asset %} active{% endif %}"
+                data-asset="{{ asset }}">{{ asset }}</button>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- Timeframe -->
+<div class="section">
+    <div class="section-label">Timeframe</div>
+    <div class="tf-bar" id="tf-bar">
+        {% for tf in timeframes %}
+        <button class="tf-btn{% if state.timeframe == tf %} active{% endif %}"
+                data-tf="{{ tf }}">{{ tf }}</button>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- Auto-Cycle -->
+<div class="section">
+    <div class="section-label">Auto-Cycle</div>
+    <div class="cycle-row">
+        <div class="cycle-toggle{% if state.cycle_mode != 'off' %} on{% endif %}" id="cycle-toggle"></div>
+        <select class="cycle-select" id="cycle-mode">
+            <option value="assets"{% if state.cycle_mode == 'assets' %} selected{% endif %}>Assets</option>
+            <option value="dashboards"{% if state.cycle_mode == 'dashboards' %} selected{% endif %}>Dashboards</option>
+            <option value="both"{% if state.cycle_mode == 'both' %} selected{% endif %}>Both</option>
+        </select>
+        <input type="number" class="cycle-input" id="cycle-interval"
+               value="{{ state.cycle_interval }}" min="10" max="300" step="5">
+        <span class="cycle-label">sec</span>
+    </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(function() {
+    let currentState = {{ state | tojson }};
+    let ws = null;
+
+    const $ = s => document.querySelector(s);
+    const $$ = s => document.querySelectorAll(s);
+
+    // --- Toast ---
+    let toastTimer;
+    function toast(msg) {
+        const el = $('#toast');
+        el.textContent = msg;
+        el.classList.add('show');
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(() => el.classList.remove('show'), 2000);
+    }
+
+    // --- API calls ---
+    async function updateState(data) {
+        try {
+            const res = await fetch('/kiosk/api/state', {
+                method: 'PUT',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(data),
+            });
+            const state = await res.json();
+            syncUI(state);
+            toast(Object.values(data).join(' '));
+        } catch(e) { toast('Error'); }
+    }
+
+    async function updateCycle(mode, interval) {
+        try {
+            await fetch('/kiosk/api/cycle', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({mode, interval}),
+            });
+            toast(mode === 'off' ? 'Cycle OFF' : 'Cycle: ' + mode);
+        } catch(e) { toast('Error'); }
+    }
+
+    // --- UI sync ---
+    function syncUI(state) {
+        currentState = state;
+        $('#current-asset').textContent = state.asset;
+
+        $$('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.dashboard === state.dashboard));
+        $$('.asset-btn').forEach(b => b.classList.toggle('active', b.dataset.asset === state.asset));
+        $$('.tf-btn').forEach(b => b.classList.toggle('active', b.dataset.tf === state.timeframe));
+
+        const toggle = $('#cycle-toggle');
+        if (state.cycle_mode !== 'off') {
+            toggle.classList.add('on');
+            $('#cycle-mode').value = state.cycle_mode;
+        } else {
+            toggle.classList.remove('on');
+        }
+        $('#cycle-interval').value = state.cycle_interval;
+    }
+
+    // --- Event listeners ---
+    $$('.tab-btn').forEach(btn => {
+        btn.addEventListener('click', () => updateState({dashboard: btn.dataset.dashboard}));
+    });
+
+    $$('.asset-btn').forEach(btn => {
+        btn.addEventListener('click', () => updateState({asset: btn.dataset.asset}));
+    });
+
+    $$('.tf-btn').forEach(btn => {
+        btn.addEventListener('click', () => updateState({timeframe: btn.dataset.tf}));
+    });
+
+    $('#cycle-toggle').addEventListener('click', function() {
+        const isOn = this.classList.contains('on');
+        if (isOn) {
+            updateCycle('off');
+        } else {
+            const mode = $('#cycle-mode').value;
+            const interval = parseInt($('#cycle-interval').value) || 30;
+            updateCycle(mode, interval);
+        }
+    });
+
+    $('#cycle-mode').addEventListener('change', function() {
+        if ($('#cycle-toggle').classList.contains('on')) {
+            const interval = parseInt($('#cycle-interval').value) || 30;
+            updateCycle(this.value, interval);
+        }
+    });
+
+    $('#cycle-interval').addEventListener('change', function() {
+        if ($('#cycle-toggle').classList.contains('on')) {
+            const mode = $('#cycle-mode').value;
+            updateCycle(mode, parseInt(this.value) || 30);
+        }
+    });
+
+    // --- WebSocket for live status ---
+    function connectWS() {
+        const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+        ws = new WebSocket(proto + '//' + location.host + '/kiosk/ws');
+
+        ws.onopen = function() {
+            const el = $('#displays-count');
+            el.classList.add('connected');
+        };
+
+        ws.onmessage = function(e) {
+            try {
+                const msg = JSON.parse(e.data);
+                if (msg.type === 'state_update' || msg.type === 'cycle_update') {
+                    syncUI(msg.state);
+                }
+            } catch(err) {}
+        };
+
+        ws.onclose = function() {
+            $('#displays-count').classList.remove('connected');
+            setTimeout(connectWS, 3000);
+        };
+
+        ws.onerror = function() { ws.close(); };
+    }
+
+    // Poll display count
+    async function pollStatus() {
+        try {
+            const res = await fetch('/kiosk/api/state');
+            const data = await res.json();
+            const n = data.displays || 0;
+            $('#displays-count').textContent = n + ' display' + (n !== 1 ? 's' : '');
+        } catch(e) {}
+    }
+
+    connectWS();
+    pollStatus();
+    setInterval(pollStatus, 5000);
+})();
+</script>
+</body>
+</html>
