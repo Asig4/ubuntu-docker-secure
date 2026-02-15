@@ -6,6 +6,14 @@ from pydantic import BaseModel, Field
 from config import settings, DASHBOARDS
 
 
+class PipState(BaseModel):
+    enabled: bool = False
+    url: str = ""  # HLS stream URL
+    position: str = "bottom-right"  # top-left, top-right, bottom-left, bottom-right
+    size: int = 25  # percentage of screen width (10-50)
+    opacity: int = 100  # 50-100
+
+
 class KioskState(BaseModel):
     dashboard: str = Field(default_factory=lambda: settings.default_dashboard)
     asset: str = Field(default_factory=lambda: settings.default_asset)
@@ -13,6 +21,7 @@ class KioskState(BaseModel):
     exchange: str = Field(default_factory=lambda: settings.default_exchange)
     cycle_mode: str = "off"  # off, assets, dashboards, both
     cycle_interval: int = Field(default_factory=lambda: settings.default_cycle_interval)
+    pip: PipState = Field(default_factory=PipState)
     updated_at: float = Field(default_factory=time.time)
 
     @property

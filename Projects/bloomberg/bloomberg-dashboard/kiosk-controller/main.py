@@ -129,6 +129,31 @@ async def toggle_cycle(update: CycleUpdate):
     return {"cycling": is_cycling(), "mode": update.mode, "interval": state.cycle_interval}
 
 
+class PipUpdate(BaseModel):
+    enabled: Optional[bool] = None
+    url: Optional[str] = None
+    position: Optional[str] = None  # top-left, top-right, bottom-left, bottom-right
+    size: Optional[int] = None  # 10-50 (% of screen width)
+    opacity: Optional[int] = None  # 50-100
+
+
+@app.put("/kiosk/api/pip")
+async def update_pip(update: PipUpdate):
+    pip_data = state_manager.state.pip.model_dump()
+    pip_data.update({k: v for k, v in update.model_dump().items() if v is not None})
+    if pip_data.get("size") is not None:
+        pip_data["size"] = max(10, min(50, pip_data["size"]))
+    if pip_data.get("opacity") is not None:
+        pip_data["opacity"] = max(50, min(100, pip_data["opacity"]))
+    state_manager.update(pip=pip_data)
+    state = state_manager.state
+    await ws_manager.broadcast({
+        "type": "pip_update",
+        "pip": state.pip.model_dump(),
+    })
+    return state.pip.model_dump()
+
+
 @app.get("/kiosk/api/options")
 async def get_options():
     return {
@@ -148,9 +173,10 @@ async def websocket_endpoint(ws: WebSocket):
     state = state_manager.state
     try:
         await ws.send_text(__import__("json").dumps({
-            "type": "state_update",
+            "type": "init",
             "state": state.model_dump(),
             "grafana_url": state.grafana_url,
+            "pip": state.pip.model_dump(),
         }))
         while True:
             data = await ws.receive_text()

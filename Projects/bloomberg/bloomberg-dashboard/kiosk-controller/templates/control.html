@@ -186,6 +186,104 @@ body {
     color: #666;
 }
 
+/* PIP Section */
+.pip-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 10px;
+}
+.pip-url-row {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 10px;
+}
+.pip-url-input {
+    flex: 1;
+    background: #111;
+    border: 1px solid #1a1a2e;
+    border-radius: 6px;
+    color: #e0e0e0;
+    font-family: inherit;
+    font-size: 0.75rem;
+    padding: 8px 10px;
+    min-height: 36px;
+}
+.pip-url-input::placeholder { color: #444; }
+.pip-apply-btn {
+    padding: 8px 14px;
+    background: #ff8c00;
+    color: #0a0a0a;
+    border: none;
+    border-radius: 6px;
+    font-family: inherit;
+    font-size: 0.75rem;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+}
+.pip-apply-btn:active { transform: scale(0.95); }
+.pip-positions {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 6px;
+}
+.pip-pos-btn {
+    padding: 8px 4px;
+    min-height: 36px;
+    border: 1px solid #1a1a2e;
+    border-radius: 6px;
+    background: #111;
+    color: #a0a0a0;
+    font-family: inherit;
+    font-size: 0.65rem;
+    cursor: pointer;
+    text-align: center;
+    transition: all 0.15s;
+}
+.pip-pos-btn:active { transform: scale(0.95); }
+.pip-pos-btn.active {
+    background: #1a1a2e;
+    color: #ff8c00;
+    border-color: #ff8c00;
+}
+.pip-slider-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 10px;
+}
+.pip-slider-row label {
+    font-size: 0.7rem;
+    color: #666;
+    min-width: 55px;
+}
+.pip-slider {
+    flex: 1;
+    -webkit-appearance: none;
+    appearance: none;
+    height: 4px;
+    background: #1a1a2e;
+    border-radius: 2px;
+    outline: none;
+}
+.pip-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 18px;
+    height: 18px;
+    background: #ff8c00;
+    border-radius: 50%;
+    cursor: pointer;
+}
+.pip-slider-val {
+    font-size: 0.75rem;
+    color: #a0a0a0;
+    min-width: 30px;
+    text-align: right;
+}
+
 /* Toast */
 .toast {
     position: fixed;
@@ -264,6 +362,40 @@ body {
         <input type="number" class="cycle-input" id="cycle-interval"
                value="{{ state.cycle_interval }}" min="10" max="300" step="5">
         <span class="cycle-label">sec</span>
+    </div>
+</div>
+
+<!-- PIP (WeChat) -->
+<div class="section">
+    <div class="section-label">PIP — WeChat</div>
+    <div class="pip-row">
+        <div class="cycle-toggle{% if state.pip and state.pip.enabled %} on{% endif %}" id="pip-toggle"></div>
+        <span class="cycle-label">Show PIP</span>
+    </div>
+    <div class="pip-url-row">
+        <input type="text" class="pip-url-input" id="pip-url"
+               placeholder="HLS stream URL (e.g. http://host:8888/wechat/index.m3u8)"
+               value="{{ state.pip.url if state.pip else '' }}">
+        <button class="pip-apply-btn" id="pip-apply">Set</button>
+    </div>
+    <div class="section-label" style="margin-top: 4px;">Position</div>
+    <div class="pip-positions" id="pip-positions">
+        <button class="pip-pos-btn{% if not state.pip or state.pip.position == 'top-left' %} active{% endif %}" data-pos="top-left">Top Left</button>
+        <button class="pip-pos-btn{% if state.pip and state.pip.position == 'top-right' %} active{% endif %}" data-pos="top-right">Top Right</button>
+        <button class="pip-pos-btn{% if state.pip and state.pip.position == 'bottom-left' %} active{% endif %}" data-pos="bottom-left">Btm Left</button>
+        <button class="pip-pos-btn{% if not state.pip or state.pip.position == 'bottom-right' %} active{% endif %}" data-pos="bottom-right">Btm Right</button>
+    </div>
+    <div class="pip-slider-row">
+        <label>Size</label>
+        <input type="range" class="pip-slider" id="pip-size" min="10" max="50" step="5"
+               value="{{ state.pip.size if state.pip else 25 }}">
+        <span class="pip-slider-val" id="pip-size-val">{{ state.pip.size if state.pip else 25 }}%</span>
+    </div>
+    <div class="pip-slider-row">
+        <label>Opacity</label>
+        <input type="range" class="pip-slider" id="pip-opacity" min="50" max="100" step="5"
+               value="{{ state.pip.opacity if state.pip else 100 }}">
+        <span class="pip-slider-val" id="pip-opacity-val">{{ state.pip.opacity if state.pip else 100 }}%</span>
     </div>
 </div>
 
@@ -369,6 +501,66 @@ body {
         }
     });
 
+    // --- PIP controls ---
+    async function updatePip(data) {
+        try {
+            const res = await fetch('/kiosk/api/pip', {
+                method: 'PUT',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(data),
+            });
+            const pip = await res.json();
+            syncPipUI(pip);
+            toast(data.enabled !== undefined ? (data.enabled ? 'PIP ON' : 'PIP OFF') : 'PIP updated');
+        } catch(e) { toast('Error'); }
+    }
+
+    function syncPipUI(pip) {
+        if (!pip) return;
+        const toggle = $('#pip-toggle');
+        toggle.classList.toggle('on', pip.enabled);
+        if (pip.url) $('#pip-url').value = pip.url;
+        $$('.pip-pos-btn').forEach(b => b.classList.toggle('active', b.dataset.pos === pip.position));
+        $('#pip-size').value = pip.size;
+        $('#pip-size-val').textContent = pip.size + '%';
+        $('#pip-opacity').value = pip.opacity;
+        $('#pip-opacity-val').textContent = pip.opacity + '%';
+    }
+
+    $('#pip-toggle').addEventListener('click', function() {
+        const isOn = this.classList.contains('on');
+        const url = $('#pip-url').value.trim();
+        if (!isOn && !url) {
+            toast('Enter stream URL first');
+            return;
+        }
+        updatePip({enabled: !isOn, url: url || undefined});
+    });
+
+    $('#pip-apply').addEventListener('click', function() {
+        const url = $('#pip-url').value.trim();
+        if (!url) { toast('Enter URL'); return; }
+        updatePip({url, enabled: true});
+    });
+
+    $$('.pip-pos-btn').forEach(btn => {
+        btn.addEventListener('click', () => updatePip({position: btn.dataset.pos}));
+    });
+
+    let pipSizeTimer;
+    $('#pip-size').addEventListener('input', function() {
+        $('#pip-size-val').textContent = this.value + '%';
+        clearTimeout(pipSizeTimer);
+        pipSizeTimer = setTimeout(() => updatePip({size: parseInt(this.value)}), 300);
+    });
+
+    let pipOpacityTimer;
+    $('#pip-opacity').addEventListener('input', function() {
+        $('#pip-opacity-val').textContent = this.value + '%';
+        clearTimeout(pipOpacityTimer);
+        pipOpacityTimer = setTimeout(() => updatePip({opacity: parseInt(this.value)}), 300);
+    });
+
     // --- WebSocket for live status ---
     function connectWS() {
         const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -384,6 +576,12 @@ body {
                 const msg = JSON.parse(e.data);
                 if (msg.type === 'state_update' || msg.type === 'cycle_update') {
                     syncUI(msg.state);
+                }
+                if (msg.type === 'pip_update') {
+                    syncPipUI(msg.pip);
+                }
+                if (msg.type === 'init' && msg.pip) {
+                    syncPipUI(msg.pip);
                 }
             } catch(err) {}
         };
